@@ -10,7 +10,10 @@ const {
 
 const register = async (req, res) => {
   try {
-    const { name, username, email, password } = req.body;
+    const name = req.body.name || req.body.username;
+    const username = req.body.username || req.body.name;
+    const email = req.body.email;
+    const password = req.body.password;
 
     if (!name || !username || !email || !password) {
       return res.status(400).json({
