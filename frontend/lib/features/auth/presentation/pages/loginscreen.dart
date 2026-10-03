@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/appcolors.dart';
-import 'package:frontend/presentation/widget/login_widget.dart';
+import 'package:frontend/features/auth/presentation/widget/login_widget.dart';
+
 
 class Loginscreen extends StatelessWidget {
   const Loginscreen({super.key});
@@ -21,19 +22,20 @@ class Loginscreen extends StatelessWidget {
               SizedBox(height: 30),
               LoginWidget.welcomeText(),
                SizedBox(height: 45),
-              LoginWidget.emailField(controller: emailcontroller),
+               
+              LoginWidget.emailField(emailController: emailcontroller),
                SizedBox(height: 30),
-              LoginWidget.passwordField(controller: passwordcontroller),
+              LoginWidget.passwordField(passwordController: passwordcontroller),
                  SizedBox(height: 30),
-              LoginWidget.loginButton(onPressed: () {
-                // Handle login logic here
-              }),
+              LoginWidget.loginButton(emailcontroller, passwordcontroller, context),
            SizedBox(height: 30),
               LoginWidget.orDivider(),
               SizedBox(height: 30,),
-              LoginWidget.googleSignInButton()
+              LoginWidget.googleSignInButton(),
+              SizedBox(height: 30,),
+              LoginWidget.moveToSignup(context: context)
             ],
-          ),
+          )
         ),
       ),
     );

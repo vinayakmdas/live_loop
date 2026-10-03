@@ -1,8 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:frontend/core/appcolors.dart';
+import 'dart:developer';
 
-class LoginWidget {
-  static Widget appText() {
+import 'package:flutter/material.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_bloc_event.dart';
+
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/features/auth/presentation/pages/loginscreen.dart';
+
+
+class SignupWidget {
+
+    static Widget appText() {
   return Row(
     children: [
       Image.asset(
@@ -23,14 +31,16 @@ class LoginWidget {
       ),
     ],
   );
-}
+}   
+
+
   static Widget welcomeText() {
 
   return Column(
 crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        'Welcome back',
+        'Create your account',
         style: TextStyle(
           fontSize: 23,
           fontWeight: FontWeight.bold,
@@ -41,7 +51,8 @@ crossAxisAlignment: CrossAxisAlignment.start,
       SizedBox(height: 6),
   
       Text(
-"Sign in to continue to Live Loop",        style: TextStyle(
+"Start your permanent meeting space",   
+     style: TextStyle(
           fontSize: 15,
           color: Colors.grey,
         ),
@@ -50,6 +61,35 @@ crossAxisAlignment: CrossAxisAlignment.start,
   );
 }
 
+
+
+static Widget username({
+    required TextEditingController controller,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.text,
+      style: const TextStyle(
+        color: Colors.white,
+      ),
+      decoration: InputDecoration(
+        hintText: 'Username',
+        hintStyle: const TextStyle(
+          color: Colors.grey,
+        ),
+        prefixIcon: const Icon(
+          Icons.person,
+          color: Colors.grey,
+        ),
+        filled: true,
+        fillColor: const Color(0xFF171A24),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
 
 static Widget emailField({
     required TextEditingController controller,
@@ -79,6 +119,8 @@ static Widget emailField({
     );
   }
 
+
+
   static Widget passwordField({
     required TextEditingController controller,
   }) {
@@ -106,14 +148,68 @@ static Widget emailField({
       ),
     );
   }
-static Widget loginButton({
-  required VoidCallback onPressed,
+
+  static Widget confirmPasswordField({
+    required TextEditingController controller,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: true,
+      style: const TextStyle(
+        color: Colors.white,
+      ),
+      decoration: InputDecoration(
+        hintText: 'Confirm Password',
+        hintStyle: const TextStyle(
+          color: Colors.grey,
+        ),
+        prefixIcon: const Icon(
+          Icons.lock_outline,
+          color: Colors.grey,
+        ),
+        filled: true,
+        fillColor: const Color(0xFF171A24),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+
+static Widget signupButton({
+  required BuildContext context,
+  required TextEditingController nameController,
+  required TextEditingController emailcontroller,
+  required  TextEditingController passwordcontroller,
+  required TextEditingController confirmPasswordcontroller,
 }) {
   return SizedBox(
     width: double.infinity,
     height: 52,
     child: ElevatedButton(
-      onPressed: onPressed,
+      
+     onPressed: () {
+      if(passwordcontroller.text.trim()==confirmPasswordcontroller.text.trim()){
+        log("1");
+        context.read<AuthBloc>().add(
+          RegisterRequested(
+            name: nameController.text.trim(),
+            email: emailcontroller.text.trim(),
+            password: passwordcontroller.text.trim(),
+          ),
+        );
+      }else{
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Passwords do not match'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+     },
+
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF4F46E5),
         foregroundColor: Colors.white,
@@ -123,7 +219,7 @@ static Widget loginButton({
         ),
       ),
       child: const Text(
-        'Sign In',
+        'Create Account',
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
@@ -132,6 +228,8 @@ static Widget loginButton({
     ),
   );
 }
+
+
 static Widget orDivider() {
   return Row(
     children: [
@@ -163,6 +261,8 @@ static Widget orDivider() {
     ],
   );
 }
+
+
 static Widget googleSignInButton() {
   return SizedBox(
     width: double.infinity,
@@ -204,6 +304,67 @@ static Widget googleSignInButton() {
         ],
       ),
     ),
+  );
+}
+
+
+static Widget moveToSignup({
+  required BuildContext context,
+}) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Text(
+        "Already have an account?",
+        style: TextStyle(
+          color: Colors.grey,
+          fontSize: 15,
+        ),
+      ),
+
+      SizedBox(width: 5),
+
+      GestureDetector(
+      onTap: () {
+  Navigator.push(
+    context,
+    PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          const Loginscreen(),
+
+      transitionsBuilder:
+          (context, animation, secondaryAnimation, child) {
+        const begin = Offset(0.15, 0.0);
+        const end = Offset.zero;
+        const curve = Curves.easeOut;
+
+        final tween = Tween(
+          begin: begin,
+          end: end,
+        ).chain(
+          CurveTween(curve: curve),
+        );
+
+        return SlideTransition(
+          position: animation.drive(tween),
+          child: child,
+        );
+      },
+
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+  );
+},
+        child: Text(
+          'Sign in',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    ],
   );
 }
 }
