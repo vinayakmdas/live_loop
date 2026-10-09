@@ -1,11 +1,10 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_event.dart';
-
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_bloc_state.dart';
 import 'package:frontend/features/auth/presentation/pages/loginscreen.dart';
+
 
 
 class SignupWidget {
@@ -182,50 +181,91 @@ static Widget signupButton({
   required BuildContext context,
   required TextEditingController nameController,
   required TextEditingController emailcontroller,
-  required  TextEditingController passwordcontroller,
+  required TextEditingController passwordcontroller,
   required TextEditingController confirmPasswordcontroller,
 }) {
-  return SizedBox(
-    width: double.infinity,
-    height: 52,
-    child: ElevatedButton(
-      
-     onPressed: () {
-      if(passwordcontroller.text.trim()==confirmPasswordcontroller.text.trim()){
-        log("1");
-        context.read<AuthBloc>().add(
-          RegisterRequested(
-            name: nameController.text.trim(),
-            email: emailcontroller.text.trim(),
-            password: passwordcontroller.text.trim(),
-          ),
-        );
-      }else{
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Passwords do not match'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-     },
+  return BlocBuilder<AuthBloc, AuthState>(
+    builder: (context, state) {
+      final isLoading = state is AuthLoading;
 
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF4F46E5),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+      return SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: ElevatedButton(
+          onPressed: isLoading
+              ? null
+              : () {
+                  final name = nameController.text.trim();
+                  final email = emailcontroller.text.trim();
+                  final password = passwordcontroller.text.trim();
+                  final confirmPassword = confirmPasswordcontroller.text.trim();
+
+                  if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please fill in all fields'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (password != confirmPassword) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Passwords do not match'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (password.length < 6) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Password must be at least 6 characters'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
+                  context.read<AuthBloc>().add(
+                        RegisterRequested(
+                          name: name,
+                          email: email,
+                          password: password,
+                        ),
+                      );
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF4F46E5),
+            disabledBackgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.6),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: isLoading
+              ? const SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2.5,
+                  ),
+                )
+              : const Text(
+                  'Create Account',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
         ),
-      ),
-      child: const Text(
-        'Create Account',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    ),
+      );
+    },
   );
 }
 

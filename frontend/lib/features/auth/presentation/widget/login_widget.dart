@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_event.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_bloc_state.dart';
 import 'package:frontend/features/auth/presentation/pages/signup_screen.dart';
+
 
 class LoginWidget {
   static Widget appText() {
@@ -85,34 +87,67 @@ class LoginWidget {
     );
   }
 
-  static Widget loginButton(TextEditingController email, TextEditingController password,BuildContext context,
- ) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: ElevatedButton(
-        onPressed: () {
-    context.read<AuthBloc>().add(
-      LoginRequested(
-        email: email.text.trim(),
-        password: password.text.trim(),
-      ),
-    );
-  },
+  static Widget loginButton(
+    TextEditingController email,
+    TextEditingController password,
+    BuildContext context,
+  ) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final isLoading = state is AuthLoading;
 
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4F46E5),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        return SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: isLoading
+                ? null
+                : () {
+                    final emailText = email.text.trim();
+                    final passwordText = password.text.trim();
+
+                    if (emailText.isEmpty || passwordText.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please fill in both email and password'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      return;
+                    }
+
+                    context.read<AuthBloc>().add(
+                          LoginRequested(
+                            email: emailText,
+                            password: passwordText,
+                          ),
+                        );
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4F46E5),
+              disabledBackgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.6),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: isLoading
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : const Text(
+                    'Sign In',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
           ),
-        ),
-        child: const Text(
-          'Sign In',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ),
+        );
+      },
     );
   }
 
