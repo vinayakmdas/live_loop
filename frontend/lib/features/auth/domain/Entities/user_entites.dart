@@ -3,11 +3,15 @@ class UserEntity {
   final String name;
   final String username;
   final String email;
+  final String? token;
+  final String? refreshToken;
 
   const UserEntity({
     required this.id,
     required this.name,
     required this.username,
     required this.email,
+    this.token,
+    this.refreshToken,
   });
 }

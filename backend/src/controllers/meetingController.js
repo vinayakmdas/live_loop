@@ -11,6 +11,8 @@ const serializeMeeting = (meeting) => ({
   description: meeting.description,
   category: meeting.category,
   accessType: meeting.accessType,
+  meetingType: meeting.meetingType || "instant",
+  scheduledStartTime: meeting.scheduledStartTime || null,
   meetingLink: meeting.meetingLink,
   status: meeting.status,
   createdBy: meeting.createdBy
@@ -28,7 +30,7 @@ const serializeMeeting = (meeting) => ({
 // ── POST /api/meetings ─────────────────────────────────────────────────────
 const createMeeting = async (req, res, next) => {
   try {
-    const { name, description, category, accessType } = req.body;
+    const { name, description, category, accessType, meetingType, scheduledStartTime } = req.body;
     const userId = req.user.id;
 
     const meeting = await meetingService.createMeeting({
@@ -36,6 +38,8 @@ const createMeeting = async (req, res, next) => {
       description,
       category,
       accessType,
+      meetingType,
+      scheduledStartTime,
       userId,
     });
 

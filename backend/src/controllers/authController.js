@@ -169,6 +169,15 @@ const refresh = async (req, res) => {
       });
     }
 
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      await RefreshToken.deleteOne({ _id: storedToken._id });
+      return res.status(401).json({
+        success: false,
+        message: "User account no longer exists",
+      });
+    }
+
     // Rotation: delete the old one
     await RefreshToken.deleteOne({ _id: storedToken._id });
 

@@ -25,6 +25,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<RegisterRequested>(_onRegister);
     on<CheckSessionRequested>(_onCheckSession);
     on<LogoutRequested>(_onLogout);
+    on<SessionExpiredRequested>(_onSessionExpired);
   }
 
   Future<void> _onLogin(LoginRequested event, Emitter<AuthState> emit) async {
@@ -78,6 +79,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onLogout(
     LogoutRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    await clearSessionUseCase();
+    emit(AuthUnauthenticated());
+  }
+
+  Future<void> _onSessionExpired(
+    SessionExpiredRequested event,
     Emitter<AuthState> emit,
   ) async {
     await clearSessionUseCase();

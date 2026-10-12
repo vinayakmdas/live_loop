@@ -72,6 +72,8 @@ class _HomescreenState extends State<Homescreen> {
       final authState = context.read<AuthBloc>().state;
       if (authState is AuthSuccess) {
         return authState.user;
+      } else if (authState is AuthAuthenticated) {
+        return authState.user;
       }
     } catch (_) {}
 

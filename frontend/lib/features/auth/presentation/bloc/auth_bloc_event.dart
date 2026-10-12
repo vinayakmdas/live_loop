@@ -27,3 +27,6 @@ class CheckSessionRequested extends AuthEvent {}
 
 /// Fired when the user explicitly logs out.
 class LogoutRequested extends AuthEvent {}
+
+/// Fired when the session has expired and refresh token is invalid or revoked.
+class SessionExpiredRequested extends AuthEvent {}

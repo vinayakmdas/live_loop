@@ -1,4 +1,4 @@
-const { CATEGORIES, ACCESS_TYPES } = require("../models/Meeting");
+const { CATEGORIES, ACCESS_TYPES, MEETING_TYPES } = require("../models/Meeting");
 const { sendError } = require("../utils/apiResponse");
 
 /**
@@ -19,6 +19,25 @@ const validateCreateMeeting = (req, res, next) => {
     typeof req.body.accessType === "string"
       ? req.body.accessType.trim()
       : "";
+  const rawType = req.body.meetingType || req.body.scheduleType;
+  const meetingType =
+    typeof rawType === "string"
+      ? rawType.trim().toLowerCase()
+      : "instant";
+
+  let scheduledStartTime = null;
+  const rawStartTime =
+    req.body.scheduledStartTime ||
+    req.body.scheduledDate ||
+    req.body.startTime;
+  if (rawStartTime) {
+    const parsedDate = new Date(rawStartTime);
+    if (isNaN(parsedDate.getTime())) {
+      errors.push("Invalid scheduled start time");
+    } else {
+      scheduledStartTime = parsedDate;
+    }
+  }
 
   if (!name) {
     errors.push("Meeting name is required");
@@ -46,6 +65,14 @@ const validateCreateMeeting = (req, res, next) => {
     );
   }
 
+  if (meetingType && !MEETING_TYPES.includes(meetingType)) {
+    errors.push(`Meeting type must be one of: ${MEETING_TYPES.join(", ")}`);
+  }
+
+  if ((meetingType === "scheduled" || meetingType === "later") && !scheduledStartTime) {
+    errors.push("Scheduled start time is required for meetings scheduled for later");
+  }
+
   if (errors.length > 0) {
     return sendError(res, 400, errors[0], errors);
   }
@@ -55,6 +82,8 @@ const validateCreateMeeting = (req, res, next) => {
   req.body.description = description;
   req.body.category = category;
   req.body.accessType = accessType;
+  req.body.meetingType = meetingType || "instant";
+  req.body.scheduledStartTime = scheduledStartTime;
 
   next();
 };

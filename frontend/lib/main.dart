@@ -11,45 +11,75 @@ import 'package:frontend/features/auth/domain/Use%20Cases/login_usecase.dart';
 import 'package:frontend/features/auth/domain/Use%20Cases/register_usecase.dart';
 import 'package:frontend/features/auth/domain/Use%20Cases/save_session_usecase.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_bloc_event.dart';
 import 'package:frontend/features/auth/presentation/pages/splash_screen.dart';
 import 'package:frontend/features/home/presentation/bloc/home_bloc.dart';
+import 'package:frontend/features/meetings/data/datasources/meeting_remote_datasource.dart';
+import 'package:frontend/features/meetings/data/repositories/meeting_repository_impl.dart';
+import 'package:frontend/features/meetings/domain/usecases/create_meeting.dart';
+import 'package:frontend/features/meetings/domain/usecases/get_meetings.dart';
+import 'package:frontend/features/meetings/presentation/bloc/meeting_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Infrastructure setup
   final prefs = await SharedPreferences.getInstance();
-  final apiService = ApiService();
-
-  // Data layer
   final sessionLocalDataSource = SessionLocalDataSource(prefs: prefs);
-  final authRemoteDataSource = AuthRemoteDataSource(apiService: apiService);
+  final apiService = ApiService(sessionLocalDataSource: sessionLocalDataSource);
+
+  // Auth Data layer
+  final authRemoteDataSource = AuthRemoteDataSource(
+    apiService: apiService,
+    sessionLocalDataSource: sessionLocalDataSource,
+  );
   final authRepository = AuthRepositoryImpl(
     remoteDataSource: authRemoteDataSource,
     localDataSource: sessionLocalDataSource,
   );
 
-  // Domain use cases
+  // Auth Domain use cases
   final loginUseCase = LoginUseCase(repository: authRepository);
   final registerUseCase = RegisterUseCase(repository: authRepository);
   final checkSessionUseCase = CheckSessionUseCase(repository: authRepository);
   final saveSessionUseCase = SaveSessionUseCase(repository: authRepository);
   final clearSessionUseCase = ClearSessionUseCase(repository: authRepository);
 
+  // Meetings Clean Architecture dependencies
+  final meetingRemoteDataSource = MeetingRemoteDataSourceImpl(
+    apiService: apiService,
+    sessionLocalDataSource: sessionLocalDataSource,
+  );
+  final meetingRepository = MeetingRepositoryImpl(meetingRemoteDataSource);
+  final createMeetingUseCase = CreateMeeting(meetingRepository);
+  final getMeetingsUseCase = GetMeetings(meetingRepository);
+
+  final authBloc = AuthBloc(
+    loginUseCase: loginUseCase,
+    registerUseCase: registerUseCase,
+    checkSessionUseCase: checkSessionUseCase,
+    saveSessionUseCase: saveSessionUseCase,
+    clearSessionUseCase: clearSessionUseCase,
+  );
+
+  apiService.onSessionExpired = () {
+    authBloc.add(SessionExpiredRequested());
+  };
+
   runApp(
     MultiBlocProvider(
       providers: [
-        BlocProvider<AuthBloc>(
-          create: (_) => AuthBloc(
-            loginUseCase: loginUseCase,
-            registerUseCase: registerUseCase,
-            checkSessionUseCase: checkSessionUseCase,
-            saveSessionUseCase: saveSessionUseCase,
-            clearSessionUseCase: clearSessionUseCase,
-          ),
+        BlocProvider<AuthBloc>.value(
+          value: authBloc,
         ),
         BlocProvider<HomeBloc>(
           create: (_) => HomeBloc(),
+        ),
+        BlocProvider<MeetingBloc>(
+          create: (_) => MeetingBloc(
+            createMeeting: createMeetingUseCase,
+            getMeetings: getMeetingsUseCase,
+          ),
         ),
       ],
       child: const MyApp(),

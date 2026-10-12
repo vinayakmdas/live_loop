@@ -7,6 +7,8 @@ import 'package:frontend/features/auth/presentation/widget/login_widget.dart';
 import 'package:frontend/features/bottom_navigation/presentation/pages/main_page.dart';
 import 'package:frontend/features/home/presentation/bloc/home_bloc.dart';
 import 'package:frontend/features/home/presentation/bloc/home_event.dart';
+import 'package:frontend/features/meetings/presentation/bloc/meeting_bloc.dart';
+import 'package:frontend/features/meetings/presentation/bloc/meeting_event.dart';
 
 class Loginscreen extends StatefulWidget {
   const Loginscreen({super.key});
@@ -43,6 +45,11 @@ class _LoginscreenState extends State<Loginscreen> {
             // Update HomeBloc with logged-in user details
             try {
               context.read<HomeBloc>().add(LoadHomeUser(user: state.user));
+            } catch (_) {}
+
+            // Load meetings with new authenticated session
+            try {
+              context.read<MeetingBloc>().add(const LoadMeetingsEvent());
             } catch (_) {}
 
             ScaffoldMessenger.of(context).showSnackBar(

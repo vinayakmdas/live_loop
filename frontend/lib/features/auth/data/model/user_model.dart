@@ -1,20 +1,27 @@
 import 'package:frontend/features/auth/domain/Entities/user_entites.dart';
 
-
 class UserModel extends UserEntity {
   const UserModel({
     required super.id,
     required super.name,
     required super.username,
     required super.email,
+    super.token,
+    super.refreshToken,
   });
 
-  factory UserModel.fromJson(Map<String, dynamic> json) {
+  factory UserModel.fromJson(
+    Map<String, dynamic> json, {
+    String? token,
+    String? refreshToken,
+  }) {
     return UserModel(
       id: (json["id"] ?? json["_id"] ?? "").toString(),
       name: (json["name"] ?? "").toString(),
       username: (json["username"] ?? json["name"] ?? "").toString(),
       email: (json["email"] ?? "").toString(),
+      token: token ?? (json["token"] ?? json["accessToken"])?.toString(),
+      refreshToken: refreshToken ?? json["refreshToken"]?.toString(),
     );
   }
 
@@ -24,6 +31,8 @@ class UserModel extends UserEntity {
       "name": name,
       "username": username,
       "email": email,
+      if (token != null) "token": token,
+      if (refreshToken != null) "refreshToken": refreshToken,
     };
   }
 }

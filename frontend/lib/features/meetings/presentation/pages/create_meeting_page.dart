@@ -2,28 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/appcolors.dart';
-import '../../data/datasources/meeting_remote_datasource.dart';
-import '../../data/repositories/meeting_repository_impl.dart';
-import '../../domain/usecases/create_meeting.dart';
 import '../bloc/meeting_bloc.dart';
 import '../bloc/meeting_event.dart';
 import '../bloc/meeting_state.dart';
 import '../widgets/meeting_access_option.dart';
 import '../widgets/meeting_form_field.dart';
+import '../widgets/meeting_timing_option.dart';
 
 class CreateMeetingPage extends StatelessWidget {
   const CreateMeetingPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final dataSource = MeetingRemoteDataSourceImpl();
-    final repository = MeetingRepositoryImpl(dataSource);
-    final useCase = CreateMeeting(repository);
-
-    return BlocProvider(
-      create: (_) => MeetingBloc(createMeeting: useCase),
-      child: const _CreateMeetingView(),
-    );
+    try {
+      context.read<MeetingBloc>();
+      return const _CreateMeetingView();
+    } catch (_) {
+      // Fallback if accessed in isolation without parent MeetingBloc
+      return const _CreateMeetingView();
+    }
   }
 }
 
@@ -40,12 +37,107 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
   final _descriptionController = TextEditingController();
 
   static const _categories = ['Project', 'Friends', 'Community', 'Team', 'Other'];
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
 
   @override
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
+
+  String _formatTime(DateTime dt) {
+    final hour = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
+  }
+
+  String _formatDateTime(DateTime dt) {
+    return '${_formatDate(dt)} at ${_formatTime(dt)}';
+  }
+
+  Future<void> _selectDate(BuildContext context, MeetingState state) async {
+    final now = DateTime.now();
+    final current = state.scheduledStartTime ?? now.add(const Duration(hours: 1));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current.isBefore(now) ? now : current,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 5),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.primary,
+              onPrimary: AppColors.white,
+              surface: AppColors.navigationBackground,
+              onSurface: AppColors.textPrimary,
+            ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: AppColors.navigationBackground,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && context.mounted) {
+      final existing = state.scheduledStartTime ?? current;
+      final updated = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        existing.hour,
+        existing.minute,
+      );
+      context.read<MeetingBloc>().add(MeetingScheduleChanged(updated));
+    }
+  }
+
+  Future<void> _selectTime(BuildContext context, MeetingState state) async {
+    final now = DateTime.now();
+    final current = state.scheduledStartTime ?? now.add(const Duration(hours: 1));
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: current.hour, minute: current.minute),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.primary,
+              onPrimary: AppColors.white,
+              surface: AppColors.navigationBackground,
+              onSurface: AppColors.textPrimary,
+            ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: AppColors.navigationBackground,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && context.mounted) {
+      final existing = state.scheduledStartTime ?? current;
+      final updated = DateTime(
+        existing.year,
+        existing.month,
+        existing.day,
+        picked.hour,
+        picked.minute,
+      );
+      context.read<MeetingBloc>().add(MeetingScheduleChanged(updated));
+    }
   }
 
   void _submit(BuildContext context, MeetingState state) {
@@ -55,6 +147,8 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
       description: _descriptionController.text,
       category: state.category,
       accessType: state.accessType,
+      meetingType: state.meetingType,
+      scheduledStartTime: state.scheduledStartTime,
     ));
   }
 
@@ -70,19 +164,32 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
           color: AppColors.textPrimary,
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text('My meetings', style: TextStyle(color: AppColors.inactiveText, fontSize: 14, fontWeight: FontWeight.w500)),
+        title: const Text(
+          'My meetings',
+          style: TextStyle(
+            color: AppColors.inactiveText,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
       body: SafeArea(
         child: BlocConsumer<MeetingBloc, MeetingState>(
           listener: (context, state) {
             if (state.status == MeetingStatus.success) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message), backgroundColor: AppColors.success),
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: AppColors.success,
+                ),
               );
               Navigator.maybePop(context, true);
             } else if (state.status == MeetingStatus.failure) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: AppColors.error,
+                ),
               );
             }
           },
@@ -108,7 +215,15 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Create a meeting space', style: TextStyle(color: AppColors.textPrimary, fontSize: 21, fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+                                const Text(
+                                  'Create a meeting space',
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 21,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
                                 const SizedBox(height: 26),
                                 MeetingFormField(
                                   label: 'Meeting name',
@@ -123,10 +238,17 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                                   maxLines: 3,
                                 ),
                                 const SizedBox(height: 20),
-                                const Text('Category', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                                const Text(
+                                  'Category',
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 const SizedBox(height: 9),
                                 DropdownButtonFormField<String>(
-                                  value: state.category.isEmpty ? null : state.category,
+                                  initialValue: state.category.isEmpty ? null : state.category,
                                   hint: const Text(
                                     'Choose a category',
                                     style: TextStyle(color: AppColors.hintText, fontSize: 13),
@@ -152,11 +274,127 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                                     child: Text(category),
                                   )).toList(),
                                   onChanged: (value) {
-                                    if (value != null) context.read<MeetingBloc>().add(MeetingCategoryChanged(value));
+                                    if (value != null) {
+                                      context.read<MeetingBloc>().add(MeetingCategoryChanged(value));
+                                    }
                                   },
                                 ),
+
                                 const SizedBox(height: 22),
-                                const Text('Who can access this space?', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                                const Text(
+                                  'When do you want to start?',
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                MeetingTimingOption(
+                                  title: 'Start an Instant Meeting',
+                                  subtitle: 'Create and start the meeting right now',
+                                  icon: Icons.bolt_outlined,
+                                  value: 'instant',
+                                  groupValue: state.meetingType,
+                                  onChanged: (value) {
+                                    context.read<MeetingBloc>().add(MeetingTypeChanged(value));
+                                  },
+                                ),
+                                const SizedBox(height: 10),
+                                MeetingTimingOption(
+                                  title: 'Create a Meeting for Later',
+                                  subtitle: 'Pick a date and time to schedule for later',
+                                  icon: Icons.calendar_today_outlined,
+                                  value: 'scheduled',
+                                  groupValue: state.meetingType,
+                                  onChanged: (value) {
+                                    context.read<MeetingBloc>().add(MeetingTypeChanged(value));
+                                    if (state.scheduledStartTime == null) {
+                                      final defaultTime = DateTime.now().add(const Duration(hours: 1));
+                                      context.read<MeetingBloc>().add(MeetingScheduleChanged(defaultTime));
+                                    }
+                                  },
+                                ),
+
+                                if (state.isScheduled) ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.background,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppColors.navigationBorder),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Icon(
+                                              Icons.access_time_rounded,
+                                              size: 16,
+                                              color: AppColors.primary,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              'Schedule details',
+                                              style: TextStyle(
+                                                color: AppColors.textPrimary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _SchedulePickerButton(
+                                                icon: Icons.calendar_month_outlined,
+                                                label: state.scheduledStartTime != null
+                                                    ? _formatDate(state.scheduledStartTime!)
+                                                    : 'Select Date',
+                                                onTap: () => _selectDate(context, state),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: _SchedulePickerButton(
+                                                icon: Icons.schedule_outlined,
+                                                label: state.scheduledStartTime != null
+                                                    ? _formatTime(state.scheduledStartTime!)
+                                                    : 'Select Time',
+                                                onTap: () => _selectTime(context, state),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        if (state.scheduledStartTime != null) ...[
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            'Meeting starts on ${_formatDateTime(state.scheduledStartTime!)}',
+                                            style: const TextStyle(
+                                              color: AppColors.primary,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
+
+                                const SizedBox(height: 22),
+                                const Text(
+                                  'Who can access this space?',
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 const SizedBox(height: 10),
                                 MeetingAccessOption(
                                   title: 'Invite only',
@@ -177,7 +415,10 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                                 if (state.status == MeetingStatus.failure && state.message.isNotEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 12),
-                                    child: Text(state.message, style: const TextStyle(color: AppColors.error, fontSize: 12)),
+                                    child: Text(
+                                      state.message,
+                                      style: const TextStyle(color: AppColors.error, fontSize: 12),
+                                    ),
                                   ),
                                 Row(
                                   children: [
@@ -185,7 +426,10 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                                       onPressed: state.status == MeetingStatus.submitting
                                           ? null
                                           : () => Navigator.maybePop(context),
-                                      child: const Text('Cancel', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                                      child: const Text(
+                                        'Cancel',
+                                        style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                                      ),
                                     ),
                                     const Spacer(),
                                     ElevatedButton(
@@ -201,8 +445,15 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                                         elevation: 0,
                                       ),
                                       child: state.status == MeetingStatus.submitting
-                                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white))
-                                          : const Text('Create meeting', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
+                                            )
+                                          : Text(
+                                              state.isScheduled ? 'Schedule meeting' : 'Create meeting',
+                                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                            ),
                                     ),
                                   ],
                                 ),
@@ -223,6 +474,52 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _SchedulePickerButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _SchedulePickerButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: AppColors.navigationBackground,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.navigationBorder),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ),
     );

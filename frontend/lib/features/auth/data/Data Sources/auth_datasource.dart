@@ -1,21 +1,45 @@
 import 'package:frontend/core/constants/api_constant.dart';
 import 'package:frontend/core/constants/api_service.dart';
+import 'package:frontend/core/storage/tocken_storage.dart';
 import 'package:frontend/features/auth/data/model/user_model.dart';
 
 class AuthRemoteDataSource {
   final ApiService apiService;
+  final SessionLocalDataSource? sessionLocalDataSource;
 
-  AuthRemoteDataSource({required this.apiService});
+  AuthRemoteDataSource({
+    required this.apiService,
+    this.sessionLocalDataSource,
+  });
 
   Future<UserModel> login(String email, String password) async {
     final response = await apiService.post(ApiConstants.loginEndpoint, {
       'email': email,
       'password': password,
     });
+
+    final token = response['data'] != null
+        ? response['data']['accessToken']
+        : response['accessToken'];
+    final refreshToken = response['data'] != null
+        ? response['data']['refreshToken']
+        : response['refreshToken'];
+
+    if (token != null && sessionLocalDataSource != null) {
+      await sessionLocalDataSource!.saveTokens(
+        accessToken: token.toString(),
+        refreshToken: refreshToken?.toString(),
+      );
+    }
+
     final userData = response['data'] != null
         ? response['data']['user']
         : response['user'];
-    return UserModel.fromJson(userData);
+    return UserModel.fromJson(
+      userData,
+      token: token?.toString(),
+      refreshToken: refreshToken?.toString(),
+    );
   }
 
   Future<UserModel> register(String name, String email, String password) async {
@@ -25,10 +49,41 @@ class AuthRemoteDataSource {
       'email': email,
       'password': password,
     });
+
+    final token = response['data'] != null
+        ? response['data']['accessToken']
+        : response['accessToken'];
+    final refreshToken = response['data'] != null
+        ? response['data']['refreshToken']
+        : response['refreshToken'];
+
+    if (token != null && sessionLocalDataSource != null) {
+      await sessionLocalDataSource!.saveTokens(
+        accessToken: token.toString(),
+        refreshToken: refreshToken?.toString(),
+      );
+    }
+
     final userData = response['data'] != null
         ? response['data']['user']
         : response['user'];
-    return UserModel.fromJson(userData);
+    return UserModel.fromJson(
+      userData,
+      token: token?.toString(),
+      refreshToken: refreshToken?.toString(),
+    );
+  }
+
+  Future<void> logout() async {
+    final refreshToken = sessionLocalDataSource?.getRefreshToken();
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        await apiService.post(ApiConstants.logoutEndpoint, {
+          'refreshToken': refreshToken,
+        });
+      } catch (_) {
+        // Local logout should still proceed even if server is unreachable
+      }
+    }
   }
 }
-

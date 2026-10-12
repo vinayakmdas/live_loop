@@ -6,7 +6,7 @@ class CreateMeeting {
 
   const CreateMeeting(this.repository);
 
-  Future<void> call(MeetingEntity meeting) {
+  Future<MeetingEntity> call(MeetingEntity meeting) {
     return repository.createMeeting(meeting);
   }
 }

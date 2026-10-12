@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/appcolors.dart';
+import 'package:frontend/features/meetings/presentation/bloc/meeting_bloc.dart';
+import 'package:frontend/features/meetings/presentation/bloc/meeting_event.dart';
 import 'package:frontend/features/meetings/presentation/pages/create_meeting_page.dart';
 
 /// Reusable UI components for the Home screen following MVC architecture
@@ -149,13 +152,16 @@ class HomescrenWidget {
       child: Material(
         color: AppColors.transparent,
         child: InkWell(
-          onTap: (){
-            Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (_) => const CreateMeetingPage(),
-  ),
-);
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const CreateMeetingPage(),
+              ),
+            );
+            if (result == true && context.mounted) {
+              context.read<MeetingBloc>().add(const LoadMeetingsEvent());
+            }
           },
           borderRadius: BorderRadius.circular(8),
           child: const Padding(

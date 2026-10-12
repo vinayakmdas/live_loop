@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const CATEGORIES = ["project", "friends", "community", "team", "other"];
 const ACCESS_TYPES = ["invite_only", "anyone_with_link"];
+const MEETING_TYPES = ["instant", "scheduled", "later"];
 
 // ─── Member sub-document ───────────────────────────────────────────────────
 // Role-based membership supports future permission layers (host, moderator, etc.)
@@ -84,6 +85,21 @@ const meetingSchema = new mongoose.Schema(
       default: "invite_only",
     },
 
+    // Meeting timing configuration: instant vs scheduled for later
+    meetingType: {
+      type: String,
+      enum: {
+        values: MEETING_TYPES,
+        message: "Meeting type must be one of: " + MEETING_TYPES.join(", "),
+      },
+      default: "instant",
+    },
+
+    scheduledStartTime: {
+      type: Date,
+      default: null,
+    },
+
     // Creator reference — never expose password or sensitive fields
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -149,3 +165,4 @@ const Meeting = mongoose.model("Meeting", meetingSchema);
 module.exports = Meeting;
 module.exports.CATEGORIES = CATEGORIES;
 module.exports.ACCESS_TYPES = ACCESS_TYPES;
+module.exports.MEETING_TYPES = MEETING_TYPES;

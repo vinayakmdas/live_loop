@@ -7,7 +7,15 @@ const { generateMeetingLink } = require("../utils/generateMeetingLink");
  */
 
 /** ── Create a meeting ──────────────────────────────────────────────────── */
-const createMeeting = async ({ name, description, category, accessType, userId }) => {
+const createMeeting = async ({
+  name,
+  description,
+  category,
+  accessType,
+  meetingType = "instant",
+  scheduledStartTime = null,
+  userId,
+}) => {
   const meetingLink = generateMeetingLink();
 
   const meeting = await meetingRepo.createMeeting({
@@ -15,6 +23,8 @@ const createMeeting = async ({ name, description, category, accessType, userId }
     description,
     category,
     accessType,
+    meetingType,
+    scheduledStartTime,
     createdBy: userId,
     meetingLink,
     // Creator is automatically the first member with role "owner"

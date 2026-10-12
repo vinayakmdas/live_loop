@@ -8,6 +8,8 @@ import 'package:frontend/features/auth/presentation/pages/loginscreen.dart';
 import 'package:frontend/features/bottom_navigation/presentation/pages/main_page.dart';
 import 'package:frontend/features/home/presentation/bloc/home_bloc.dart';
 import 'package:frontend/features/home/presentation/bloc/home_event.dart';
+import 'package:frontend/features/meetings/presentation/bloc/meeting_bloc.dart';
+import 'package:frontend/features/meetings/presentation/bloc/meeting_event.dart';
 
 /// A simple splash screen that checks local session on startup and routes
 /// to either the Home (MainPage) or Login screen accordingly.
@@ -35,6 +37,11 @@ class _SplashScreenState extends State<SplashScreen> {
           // Restore user into HomeBloc so screens have access to user data.
           try {
             context.read<HomeBloc>().add(LoadHomeUser(user: state.user));
+          } catch (_) {}
+
+          // Preload meetings for authenticated user
+          try {
+            context.read<MeetingBloc>().add(const LoadMeetingsEvent());
           } catch (_) {}
 
           Navigator.pushAndRemoveUntil(

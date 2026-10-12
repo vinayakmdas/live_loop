@@ -9,13 +9,20 @@ class MeetingRepositoryImpl implements MeetingRepository {
   const MeetingRepositoryImpl(this.dataSource);
 
   @override
-  Future<void> createMeeting(MeetingEntity meeting) {
+  Future<MeetingEntity> createMeeting(MeetingEntity meeting) {
     final model = MeetingModel(
       name: meeting.name,
       description: meeting.description,
       category: meeting.category,
       accessType: meeting.accessType,
+      meetingType: meeting.meetingType,
+      scheduledStartTime: meeting.scheduledStartTime,
     );
     return dataSource.createMeeting(model);
+  }
+
+  @override
+  Future<List<MeetingEntity>> getMeetings() {
+    return dataSource.getMeetings();
   }
 }
