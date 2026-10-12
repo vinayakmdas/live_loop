@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/meeting_entity.dart';
+import '../../domain/entities/meeting_join_result.dart';
 
 enum MeetingStatus { initial, submitting, success, failure }
 
@@ -11,6 +12,8 @@ class MeetingState extends Equatable {
   final DateTime? scheduledStartTime;
   final MeetingStatus status;
   final String message;
+  final MeetingJoinResult? joinResult;
+  final bool isJoining;
 
   const MeetingState({
     this.meetings = const [],
@@ -20,6 +23,8 @@ class MeetingState extends Equatable {
     this.scheduledStartTime,
     this.status = MeetingStatus.initial,
     this.message = '',
+    this.joinResult,
+    this.isJoining = false,
   });
 
   bool get isInstant => meetingType == 'instant';
@@ -34,6 +39,8 @@ class MeetingState extends Equatable {
     bool clearScheduledStartTime = false,
     MeetingStatus? status,
     String? message,
+    MeetingJoinResult? joinResult,
+    bool? isJoining,
   }) {
     return MeetingState(
       meetings: meetings ?? this.meetings,
@@ -45,6 +52,8 @@ class MeetingState extends Equatable {
           : (scheduledStartTime ?? this.scheduledStartTime),
       status: status ?? this.status,
       message: message ?? this.message,
+      joinResult: joinResult ?? this.joinResult,
+      isJoining: isJoining ?? this.isJoining,
     );
   }
 
@@ -57,6 +66,8 @@ class MeetingState extends Equatable {
         scheduledStartTime,
         status,
         message,
+        joinResult,
+        isJoining,
       ];
 }
 
@@ -101,3 +112,17 @@ class MeetingError extends MeetingState {
   @override
   List<Object?> get props => [error, ...super.props];
 }
+
+class MeetingJoined extends MeetingState {
+  const MeetingJoined({
+    required MeetingJoinResult joinResult,
+    super.meetings,
+    super.category,
+    super.accessType,
+    super.meetingType,
+    super.scheduledStartTime,
+    super.status = MeetingStatus.success,
+    super.message,
+  }) : super(joinResult: joinResult, isJoining: false);
+}
+

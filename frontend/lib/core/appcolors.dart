@@ -46,4 +46,5 @@ class AppColors {
       primaryGradientEnd,
     ],
   );
+   static Color liveGreen = Color(0xFF22C55E);
 }

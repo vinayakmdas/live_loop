@@ -12,6 +12,7 @@ class MeetingModel extends MeetingEntity {
     super.meetingLink,
     super.status,
     super.memberCount,
+    super.memberInitials = const [],
     super.createdAt,
     super.updatedAt,
   });
@@ -39,6 +40,9 @@ class MeetingModel extends MeetingEntity {
       memberCount: json['memberCount'] is int
           ? json['memberCount'] as int
           : (json['members'] is List ? (json['members'] as List).length : 0),
+      memberInitials: json['memberInitials'] is List
+          ? (json['memberInitials'] as List).map((e) => e.toString()).toList()
+          : const [],
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,

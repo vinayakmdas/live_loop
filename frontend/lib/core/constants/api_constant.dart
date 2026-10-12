@@ -19,4 +19,6 @@ class ApiConstants {
   static const String refreshEndpoint = "/api/auth/refresh";
   static const String logoutEndpoint = "/api/auth/logout";
   static const String meetingsEndpoint = "/api/meetings";
+  static const String joinMeetingEndpoint = "/api/meetings/join";
+  static String meetingJoinEndpoint(String id) => "/api/meetings/$id/join";
 }

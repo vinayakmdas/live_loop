@@ -74,3 +74,14 @@ class MeetingSubmitted extends MeetingEvent {
 class MeetingMessageCleared extends MeetingEvent {
   const MeetingMessageCleared();
 }
+
+class JoinMeetingRequested extends MeetingEvent {
+  final String? meetingId;
+  final String? meetingLink;
+
+  const JoinMeetingRequested({this.meetingId, this.meetingLink});
+
+  @override
+  List<Object?> get props => [meetingId, meetingLink];
+}
+

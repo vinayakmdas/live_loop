@@ -18,6 +18,7 @@ import 'package:frontend/features/meetings/data/datasources/meeting_remote_datas
 import 'package:frontend/features/meetings/data/repositories/meeting_repository_impl.dart';
 import 'package:frontend/features/meetings/domain/usecases/create_meeting.dart';
 import 'package:frontend/features/meetings/domain/usecases/get_meetings.dart';
+import 'package:frontend/features/meetings/domain/usecases/join_meeting.dart';
 import 'package:frontend/features/meetings/presentation/bloc/meeting_bloc.dart';
 
 void main() async {
@@ -53,6 +54,7 @@ void main() async {
   final meetingRepository = MeetingRepositoryImpl(meetingRemoteDataSource);
   final createMeetingUseCase = CreateMeeting(meetingRepository);
   final getMeetingsUseCase = GetMeetings(meetingRepository);
+  final joinMeetingUseCase = JoinMeeting(meetingRepository);
 
   final authBloc = AuthBloc(
     loginUseCase: loginUseCase,
@@ -79,6 +81,7 @@ void main() async {
           create: (_) => MeetingBloc(
             createMeeting: createMeetingUseCase,
             getMeetings: getMeetingsUseCase,
+            joinMeeting: joinMeetingUseCase,
           ),
         ),
       ],

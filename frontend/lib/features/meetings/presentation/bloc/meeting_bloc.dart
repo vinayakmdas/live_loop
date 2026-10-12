@@ -1,18 +1,22 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/meeting_entity.dart';
+import '../../domain/entities/meeting_join_result.dart';
 import '../../domain/usecases/create_meeting.dart';
 import '../../domain/usecases/get_meetings.dart';
+import '../../domain/usecases/join_meeting.dart';
 import 'meeting_event.dart';
 import 'meeting_state.dart';
 
 class MeetingBloc extends Bloc<MeetingEvent, MeetingState> {
   final CreateMeeting createMeeting;
   final GetMeetings getMeetings;
+  final JoinMeeting? joinMeeting;
 
   MeetingBloc({
     required this.createMeeting,
     required this.getMeetings,
+    this.joinMeeting,
   }) : super(const MeetingState()) {
     on<LoadMeetingsEvent>(_onLoadMeetings);
     on<MeetingCategoryChanged>(_onCategoryChanged);
@@ -21,6 +25,7 @@ class MeetingBloc extends Bloc<MeetingEvent, MeetingState> {
     on<MeetingScheduleChanged>(_onScheduleChanged);
     on<MeetingMessageCleared>(_onMessageCleared);
     on<MeetingSubmitted>(_onMeetingSubmitted);
+    on<JoinMeetingRequested>(_onJoinMeeting);
   }
 
   Future<void> _onLoadMeetings(
@@ -173,5 +178,53 @@ class MeetingBloc extends Bloc<MeetingEvent, MeetingState> {
         message: e.toString(),
       ));
     }
+  }
+
+  Future<void> _onJoinMeeting(
+    JoinMeetingRequested event,
+    Emitter<MeetingState> emit,
+  ) async {
+    if (joinMeeting == null) return;
+    emit(state.copyWith(isJoining: true, message: ''));
+
+    try {
+      final result = await joinMeeting!(
+        meetingId: event.meetingId,
+        meetingLink: event.meetingLink,
+      );
+
+      final updatedMeetings = state.meetings.map((m) {
+        if (m.id == result.meeting.id) {
+          return result.meeting;
+        }
+        return m;
+      }).toList();
+
+      emit(MeetingJoined(
+        joinResult: result,
+        meetings: updatedMeetings,
+        category: state.category,
+        accessType: state.accessType,
+        meetingType: state.meetingType,
+        scheduledStartTime: state.scheduledStartTime,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        isJoining: false,
+        status: MeetingStatus.failure,
+        message: e.toString(),
+      ));
+    }
+  }
+
+  Future<MeetingJoinResult?> joinMeetingDirect({
+    String? meetingId,
+    String? meetingLink,
+  }) async {
+    if (joinMeeting == null) return null;
+    return joinMeeting!(
+      meetingId: meetingId,
+      meetingLink: meetingLink,
+    );
   }
 }
