@@ -21,3 +21,9 @@ class RegisterRequested extends AuthEvent {
     required this.password,
   });
 }
+
+/// Fired on app start to check whether a valid local session exists.
+class CheckSessionRequested extends AuthEvent {}
+
+/// Fired when the user explicitly logs out.
+class LogoutRequested extends AuthEvent {}
