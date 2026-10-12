@@ -1,25 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/core/appcolors.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_event.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_state.dart';
 import 'package:frontend/features/auth/presentation/pages/signup_screen.dart';
-
 
 class LoginWidget {
   static Widget appText() {
     return Row(
       children: [
         Image.asset("asset/icon.png", width: 42, height: 42),
-
-        SizedBox(width: 0),
-
-        Text(
+        const SizedBox(width: 0),
+        const Text(
           'Live Loop',
           style: TextStyle(
             fontSize: 23,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppColors.white,
           ),
         ),
       ],
@@ -27,7 +25,7 @@ class LoginWidget {
   }
 
   static Widget welcomeText() {
-    return Column(
+    return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -35,15 +33,13 @@ class LoginWidget {
           style: TextStyle(
             fontSize: 23,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppColors.white,
           ),
         ),
-
         SizedBox(height: 6),
-
         Text(
           "Sign in to continue to Live Loop",
-          style: TextStyle(fontSize: 15, color: Colors.grey),
+          style: TextStyle(fontSize: 15, color: AppColors.grey),
         ),
       ],
     );
@@ -53,13 +49,13 @@ class LoginWidget {
     return TextField(
       controller: emailController,
       keyboardType: TextInputType.emailAddress,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: AppColors.white),
       decoration: InputDecoration(
         hintText: 'Email',
-        hintStyle: const TextStyle(color: Colors.grey),
-        prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
+        hintStyle: const TextStyle(color: AppColors.hintText),
+        prefixIcon: const Icon(Icons.email_outlined, color: AppColors.iconColor),
         filled: true,
-        fillColor: const Color(0xFF171A24),
+        fillColor: AppColors.inputFill,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -72,13 +68,13 @@ class LoginWidget {
     return TextField(
       controller: passwordController,
       obscureText: true,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: AppColors.white),
       decoration: InputDecoration(
         hintText: 'Password',
-        hintStyle: const TextStyle(color: Colors.grey),
-        prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+        hintStyle: const TextStyle(color: AppColors.hintText),
+        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.iconColor),
         filled: true,
-        fillColor: const Color(0xFF171A24),
+        fillColor: AppColors.inputFill,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -110,7 +106,7 @@ class LoginWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Please fill in both email and password'),
-                          backgroundColor: Colors.orange,
+                          backgroundColor: AppColors.warning,
                         ),
                       );
                       return;
@@ -124,9 +120,9 @@ class LoginWidget {
                         );
                   },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4F46E5),
-              disabledBackgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.6),
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.primary,
+              disabledBackgroundColor: AppColors.primaryDisabled,
+              foregroundColor: AppColors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -137,7 +133,7 @@ class LoginWidget {
                     height: 22,
                     width: 22,
                     child: CircularProgressIndicator(
-                      color: Colors.white,
+                      color: AppColors.white,
                       strokeWidth: 2.5,
                     ),
                   )
@@ -152,23 +148,21 @@ class LoginWidget {
   }
 
   static Widget orDivider() {
-    return Row(
+    return const Row(
       children: [
-        const Expanded(child: Divider(color: Colors.grey, thickness: 1)),
-
-        const Padding(
+        Expanded(child: Divider(color: AppColors.divider, thickness: 1)),
+        Padding(
           padding: EdgeInsets.symmetric(horizontal: 15),
           child: Text(
             'OR',
             style: TextStyle(
-              color: Colors.grey,
+              color: AppColors.grey,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
         ),
-
-        const Expanded(child: Divider(color: Colors.grey, thickness: 1)),
+        Expanded(child: Divider(color: AppColors.divider, thickness: 1)),
       ],
     );
   }
@@ -182,8 +176,8 @@ class LoginWidget {
           // Google sign-in
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF171A24),
-          foregroundColor: Colors.white,
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -197,13 +191,11 @@ class LoginWidget {
               height: 36,
               child: Image.asset('asset/google.png', fit: BoxFit.contain),
             ),
-
             const SizedBox(width: 6),
-
             const Text(
               'Sign in with Google',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -218,48 +210,44 @@ class LoginWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
+        const Text(
           "Don't have an account?",
-          style: TextStyle(color: Colors.grey, fontSize: 15),
+          style: TextStyle(color: AppColors.grey, fontSize: 15),
         ),
-
-        SizedBox(width: 5),
-
+        const SizedBox(width: 5),
         GestureDetector(
           onTap: () {
-  Navigator.push(
-    context,
-    PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) =>
-          const SignupScreen(),
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const SignupScreen(),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                  const begin = Offset(0.15, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeOut;
 
-      transitionsBuilder:
-          (context, animation, secondaryAnimation, child) {
-        const begin = Offset(0.15, 0.0);
-        const end = Offset.zero;
-        const curve = Curves.easeOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(
+                    CurveTween(curve: curve),
+                  );
 
-        final tween = Tween(
-          begin: begin,
-          end: end,
-        ).chain(
-          CurveTween(curve: curve),
-        );
-
-        return SlideTransition(
-          position: animation.drive(tween),
-          child: child,
-        );
-      },
-
-      transitionDuration: const Duration(milliseconds: 300),
-    ),
-  );
-},
-          child: Text(
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
+                transitionDuration: const Duration(milliseconds: 300),
+              ),
+            );
+          },
+          child: const Text(
             'Sign up',
             style: TextStyle(
-              color: Colors.white,
+              color: AppColors.white,
               fontSize: 15,
               fontWeight: FontWeight.bold,
             ),

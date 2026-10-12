@@ -4,7 +4,9 @@ import 'package:frontend/core/appcolors.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_state.dart';
 import 'package:frontend/features/auth/presentation/widget/signup_widget.dart';
-import 'package:frontend/features/home/presentation/screen/homescreen.dart';
+import 'package:frontend/features/bottom_navigation/presentation/pages/main_page.dart';
+import 'package:frontend/features/home/presentation/bloc/home_bloc.dart';
+import 'package:frontend/features/home/presentation/bloc/home_event.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -44,16 +46,22 @@ class _SignupScreenState extends State<SignupScreen> {
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthSuccess) {
+            // Update HomeBloc with newly registered user details
+            try {
+              context.read<HomeBloc>().add(LoadHomeUser(user: state.user));
+            } catch (_) {}
+
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Account created successfully!'),
-                backgroundColor: Colors.green,
+                backgroundColor: AppColors.success,
               ),
             );
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
-                builder: (context) => Homescreen(user: state.user),
+                builder: (context) => const MainPage(),
+                settings: RouteSettings(arguments: state.user),
               ),
               (route) => false,
             );
@@ -61,7 +69,7 @@ class _SignupScreenState extends State<SignupScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
-                backgroundColor: Colors.red,
+                backgroundColor: AppColors.error,
               ),
             );
           }

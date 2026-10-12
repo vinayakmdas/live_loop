@@ -7,6 +7,8 @@ import 'package:frontend/features/auth/domain/Use%20Cases/login_usecase.dart';
 import 'package:frontend/features/auth/domain/Use%20Cases/register_usecase.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:frontend/features/auth/presentation/pages/loginscreen.dart';
+import 'package:frontend/features/home/presentation/bloc/home_bloc.dart';
+import 'package:frontend/features/home/presentation/page/homescreen.dart';
 
 void main() {
   final apiService = ApiService();
@@ -28,11 +30,18 @@ void main() {
   );
 
   runApp(
-    BlocProvider(
-      create: (context) => AuthBloc(
-        loginUseCase: loginUseCase,
-        registerUseCase: registerUseCase,
-      ),
+    MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBloc>(
+          create: (context) => AuthBloc(
+            loginUseCase: loginUseCase,
+            registerUseCase: registerUseCase,
+          ),
+        ),
+        BlocProvider<HomeBloc>(
+          create: (context) => HomeBloc(),
+        ),
+      ],
       child: const MyApp(),
     ),
   );
@@ -43,9 +52,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Loginscreen(),
+      home: const Loginscreen(),
+      routes: {
+        '/login': (context) => const Loginscreen(),
+        '/home': (context) => const Homescreen(),
+      },
     );
   }
 }

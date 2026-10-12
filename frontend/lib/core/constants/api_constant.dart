@@ -8,7 +8,7 @@ class ApiConstants {
     }
 
     if (Platform.isAndroid) {
-      return "http://192.168.1.23:5001";
+      return "http://192.168.1.101:5001";
     }
 
     return "http://localhost:5001";
