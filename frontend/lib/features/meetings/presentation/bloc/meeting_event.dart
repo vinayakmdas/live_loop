@@ -78,10 +78,15 @@ class MeetingMessageCleared extends MeetingEvent {
 class JoinMeetingRequested extends MeetingEvent {
   final String? meetingId;
   final String? meetingLink;
+  final String? roomName;
 
-  const JoinMeetingRequested({this.meetingId, this.meetingLink});
+  const JoinMeetingRequested({
+    this.meetingId,
+    this.meetingLink,
+    this.roomName,
+  });
 
   @override
-  List<Object?> get props => [meetingId, meetingLink];
+  List<Object?> get props => [meetingId, meetingLink, roomName];
 }
 

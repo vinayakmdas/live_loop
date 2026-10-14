@@ -6,6 +6,7 @@ const connectDatabase = require("./config/database");
 const authRoutes = require("./routes/authRoutes");
 const meetingRoutes = require("./routes/meetingRoutes");
 const errorMiddleware = require("./middleware/errorMiddleware");
+const { checkLiveKitConfig } = require("./utils/generateLiveKitToken");
 
 dotenv.config();
 
@@ -46,6 +47,16 @@ const PORT = process.env.PORT || 5001;
 
 const startServer = async () => {
   await connectDatabase();
+
+  // Validate LiveKit configuration safely
+  const lkConfig = checkLiveKitConfig();
+  if (lkConfig.warning) {
+    console.warn(lkConfig.warning);
+  } else if (!lkConfig.valid) {
+    console.warn(`[LiveKit Notice] ${lkConfig.error}`);
+  } else {
+    console.log(`[LiveKit] Config loaded: ${lkConfig.serverUrl} (key prefix: ${lkConfig.apiKey.substring(0, 4)}...)`);
+  }
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);

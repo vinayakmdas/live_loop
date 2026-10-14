@@ -191,6 +191,7 @@ class MeetingBloc extends Bloc<MeetingEvent, MeetingState> {
       final result = await joinMeeting!(
         meetingId: event.meetingId,
         meetingLink: event.meetingLink,
+        roomName: event.roomName,
       );
 
       final updatedMeetings = state.meetings.map((m) {
@@ -220,11 +221,13 @@ class MeetingBloc extends Bloc<MeetingEvent, MeetingState> {
   Future<MeetingJoinResult?> joinMeetingDirect({
     String? meetingId,
     String? meetingLink,
+    String? roomName,
   }) async {
     if (joinMeeting == null) return null;
     return joinMeeting!(
       meetingId: meetingId,
       meetingLink: meetingLink,
+      roomName: roomName,
     );
   }
 }

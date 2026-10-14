@@ -31,10 +31,12 @@ class MeetingRepositoryImpl implements MeetingRepository {
   Future<MeetingJoinResult> joinMeeting({
     String? meetingId,
     String? meetingLink,
+    String? roomName,
   }) {
     return dataSource.joinMeeting(
       meetingId: meetingId,
       meetingLink: meetingLink,
+      roomName: roomName,
     );
   }
 }

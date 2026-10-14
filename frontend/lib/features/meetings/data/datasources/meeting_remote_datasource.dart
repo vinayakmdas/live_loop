@@ -7,7 +7,11 @@ import '../models/meeting_model.dart';
 abstract class MeetingRemoteDataSource {
   Future<MeetingModel> createMeeting(MeetingModel meeting);
   Future<List<MeetingModel>> getMeetings();
-  Future<MeetingJoinResult> joinMeeting({String? meetingId, String? meetingLink});
+  Future<MeetingJoinResult> joinMeeting({
+    String? meetingId,
+    String? meetingLink,
+    String? roomName,
+  });
 }
 
 class MeetingRemoteDataSourceImpl implements MeetingRemoteDataSource {
@@ -62,8 +66,10 @@ class MeetingRemoteDataSourceImpl implements MeetingRemoteDataSource {
   Future<MeetingJoinResult> joinMeeting({
     String? meetingId,
     String? meetingLink,
+    String? roomName,
   }) async {
-    final token = sessionLocalDataSource?.getToken();
+    // 1. Local session token is strictly for authenticating the HTTP API request
+    final authSessionToken = sessionLocalDataSource?.getToken();
     final endpoint = meetingId != null && meetingId.isNotEmpty
         ? ApiConstants.meetingJoinEndpoint(meetingId)
         : ApiConstants.joinMeetingEndpoint;
@@ -72,12 +78,14 @@ class MeetingRemoteDataSourceImpl implements MeetingRemoteDataSource {
       if (meetingId != null && meetingId.isNotEmpty) 'meetingId': meetingId,
       if (meetingLink != null && meetingLink.isNotEmpty)
         'meetingLink': meetingLink,
+      if (roomName != null && roomName.isNotEmpty)
+        'roomName': roomName,
     };
 
     final response = await apiService.post(
       endpoint,
       body,
-      token: token,
+      token: authSessionToken,
     );
 
     final data = response['data'] is Map<String, dynamic>
@@ -89,15 +97,25 @@ class MeetingRemoteDataSourceImpl implements MeetingRemoteDataSource {
         : data;
 
     final meeting = MeetingModel.fromJson(meetingData);
-    final roomToken = data['token']?.toString() ?? token ?? '';
-    final roomName = data['roomName']?.toString() ?? meeting.name;
+
+    // 2. Extract and strictly validate the LiveKit participant token.
+    // NEVER fall back to authSessionToken (app login JWT), which causes 'Invalid API key' in LiveKit.
+    final roomToken = data['token']?.toString() ?? '';
+    if (roomToken.isEmpty) {
+      throw Exception(
+        'Backend did not return a LiveKit participant token. Please verify LiveKit server configuration.',
+      );
+    }
+
+    final effectiveRoomName = data['roomName']?.toString() ??
+        (roomName != null && roomName.isNotEmpty ? roomName : meeting.name);
     final serverUrl = data['serverUrl']?.toString() ??
         'wss://live-loop-wdcidnza.livekit.cloud';
 
     return MeetingJoinResult(
       meeting: meeting,
       token: roomToken,
-      roomName: roomName,
+      roomName: effectiveRoomName,
       serverUrl: serverUrl,
     );
   }

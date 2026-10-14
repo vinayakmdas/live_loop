@@ -1,5 +1,6 @@
 const meetingService = require("../services/meetingService");
 const { sendSuccess, sendError } = require("../utils/apiResponse");
+const { generateLiveKitToken } = require("../utils/generateLiveKitToken");
 
 /**
  * Serialize a meeting document into the safe shape returned by every endpoint.
@@ -23,6 +24,15 @@ const serializeMeeting = (meeting) => ({
       }
     : null,
   memberCount: meeting.members ? meeting.members.length : 0,
+  memberInitials: Array.isArray(meeting.members)
+    ? meeting.members
+        .map((m) =>
+          m.user && m.user.name
+            ? m.user.name.trim().charAt(0).toUpperCase()
+            : null
+        )
+        .filter(Boolean)
+    : [],
   createdAt: meeting.createdAt,
   updatedAt: meeting.updatedAt,
 });
@@ -115,22 +125,96 @@ const archiveMeeting = async (req, res, next) => {
   }
 };
 
-// ── POST /api/meetings/join ────────────────────────────────────────────────
+// ── POST /api/meetings/join or /api/meetings/:meetingId/join ───────────────
 const joinMeeting = async (req, res, next) => {
   try {
-    const { meetingLink } = req.body;
+    const { meetingLink, meetingId, roomName: requestedRoomName } = req.body || {};
+    const queryRoomName = req.query ? req.query.roomName : null;
+    const customRoom = (requestedRoomName || queryRoomName || "").trim();
+    const targetMeetingId = req.params.meetingId || meetingId;
 
-    if (!meetingLink || typeof meetingLink !== "string") {
-      return sendError(res, 400, "Meeting link is required");
+    let meeting;
+    if (meetingLink || targetMeetingId) {
+      meeting = await meetingService.joinMeeting(req.user.id, {
+        meetingLink: typeof meetingLink === "string" ? meetingLink.trim() : null,
+        meetingId: targetMeetingId,
+      });
+    } else if (customRoom) {
+      const Meeting = require("../models/Meeting");
+      let foundMeeting = await Meeting.findOne({
+        $or: [
+          { name: customRoom },
+          { roomIdentifier: customRoom },
+          { meetingLink: customRoom },
+        ],
+        status: "active",
+      }).sort({ createdAt: -1 });
+
+      if (!foundMeeting) {
+        foundMeeting = await meetingService.createMeeting({
+          name: customRoom,
+          description: `Live room: ${customRoom}`,
+          category: "community",
+          accessType: "anyone_with_link",
+          meetingType: "instant",
+          userId: req.user.id,
+        });
+      } else {
+        foundMeeting = await meetingService.joinMeeting(req.user.id, {
+          meetingId: foundMeeting._id,
+        });
+      }
+      meeting = foundMeeting;
+    } else {
+      const Meeting = require("../models/Meeting");
+      let activeMeeting = await Meeting.findOne({
+        status: "active",
+        meetingType: "instant",
+      }).sort({ createdAt: -1 });
+
+      if (!activeMeeting) {
+        activeMeeting = await meetingService.createMeeting({
+          name: "Live Loop Main Room",
+          description: "Weekly community meetup",
+          category: "community",
+          accessType: "anyone_with_link",
+          meetingType: "instant",
+          userId: req.user.id,
+        });
+      } else {
+        activeMeeting = await meetingService.joinMeeting(req.user.id, {
+          meetingId: activeMeeting._id,
+        });
+      }
+      meeting = activeMeeting;
     }
 
-    const meeting = await meetingService.joinMeeting(
-      req.user.id,
-      meetingLink.trim()
-    );
+    // Determine the exact room name to use for BOTH the token grant and connection
+    const effectiveRoomName =
+      customRoom ||
+      meeting.name ||
+      meeting.roomIdentifier ||
+      meeting.meetingLink ||
+      meeting._id.toString();
+
+    // Generate a valid LiveKit participant token.
+    // NEVER fall back to application login JWT — they have completely different
+    // signatures and schemas, which will cause 'Invalid API key' on LiveKit Cloud.
+    const livekitToken = await generateLiveKitToken({
+      roomName: effectiveRoomName,
+      participantIdentity: req.user.id.toString(),
+      participantName: req.user.name || req.user.username || "Participant",
+      ttl: "6h",
+    });
+
+    const serverUrl =
+      process.env.LIVEKIT_URL || "wss://live-loop-wdcidnza.livekit.cloud";
 
     return sendSuccess(res, 200, "Joined meeting successfully", {
       meeting: serializeMeeting(meeting),
+      token: livekitToken,
+      roomName: effectiveRoomName,
+      serverUrl,
     });
   } catch (err) {
     next(err);

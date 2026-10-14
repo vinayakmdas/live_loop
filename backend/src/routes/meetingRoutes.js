@@ -25,8 +25,12 @@ router.use(protect);
 router.post("/", validateCreateMeeting, createMeeting);
 router.get("/", getMyMeetings);
 
-// ── /api/meetings/join  (must come before /:meetingId to avoid param clash) ─
+// ── /api/meetings/join & /token ──────────────────────────────────────────
 router.post("/join", joinMeeting);
+router.get("/token", joinMeeting);
+router.post("/token", joinMeeting);
+router.post("/:meetingId/join", validateObjectId("meetingId"), joinMeeting);
+router.get("/:meetingId/token", validateObjectId("meetingId"), joinMeeting);
 
 // ── /api/meetings/:meetingId ───────────────────────────────────────────────
 router.get("/:meetingId", validateObjectId("meetingId"), getMeeting);

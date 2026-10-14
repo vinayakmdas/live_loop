@@ -11,7 +11,7 @@ import 'package:frontend/features/bottom_navigation/presentation/widget/custtom_
 import 'package:frontend/features/home/presentation/bloc/home_bloc.dart';
 import 'package:frontend/features/home/presentation/bloc/home_event.dart';
 import 'package:frontend/features/home/presentation/page/homescreen.dart';
-import 'package:frontend/features/meetings/presentation/pages/meeting_Screen.dart';
+import 'package:frontend/features/meetings/presentation/pages/meeting_screen.dart';
 import 'package:frontend/features/notification/presentation/page/notification_screen.dart';
 import 'package:frontend/features/profile/presentation/page/profile_screen.dart';
 

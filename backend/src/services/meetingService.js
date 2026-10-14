@@ -112,18 +112,32 @@ const archiveMeeting = async (meetingId, userId) => {
   return meetingRepo.archiveMeeting(meetingId);
 };
 
-/** ── Join a meeting via meeting link ──────────────────────────────────── */
-const joinMeeting = async (userId, meetingLink) => {
-  const meeting = await meetingRepo.findByLink(meetingLink);
+/** ── Join a meeting via meeting link or meeting ID ─────────────────────── */
+const joinMeeting = async (userId, target) => {
+  let meeting = null;
+  const meetingId =
+    typeof target === "object" && target !== null ? target.meetingId : null;
+  const meetingLink =
+    typeof target === "object" && target !== null
+      ? target.meetingLink
+      : typeof target === "string"
+      ? target
+      : null;
 
-  if (!meeting) {
-    const err = new Error("Invalid or expired meeting link");
+  if (meetingId) {
+    meeting = await meetingRepo.findById(meetingId);
+  } else if (meetingLink) {
+    meeting = await meetingRepo.findByLink(meetingLink);
+  }
+
+  if (!meeting || meeting.status === "archived") {
+    const err = new Error("Invalid or expired meeting");
     err.status = 404;
     throw err;
   }
 
-  // Invite-only: must be invited (member or invitee with pending status)
-  if (meeting.accessType === "invite_only") {
+  // Invite-only: must be invited (member or invitee with pending status) or owner
+  if (meeting.accessType === "invite_only" && !meeting.isOwner(userId)) {
     const alreadyInvited = meeting.invitees.some(
       (i) =>
         i.user.toString() === userId.toString() &&

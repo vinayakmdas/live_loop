@@ -131,11 +131,15 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
     return '$hour:$minute $period';
   }
 
-  /// Handles retrieving access token and room credentials to join LiveKit room
-  Future<void> _handleJoinMeeting([MeetingEntity? meeting]) async {
+  /// Handles retrieving LiveKit participant token from backend and navigating to VideoCallScreen
+  Future<void> _handleJoinMeeting([
+    MeetingEntity? meeting,
+    String? requestedRoom,
+  ]) async {
     if (_joiningMeetingId != null) return;
 
-    final targetId = meeting?.id ?? meeting?.meetingLink ?? 'live_room';
+    final targetId =
+        meeting?.id ?? meeting?.meetingLink ?? requestedRoom ?? 'live_room';
     setState(() {
       _joiningMeetingId = targetId;
     });
@@ -144,70 +148,64 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
       final meetingBloc = context.read<MeetingBloc>();
       final authBloc = context.read<AuthBloc>();
 
-      // 1. Retrieve the saved session access token from local storage (SharedPreferences)
+      // 1. Verify user is logged in (session token used for HTTP authorization)
       final prefs = await SharedPreferences.getInstance();
-      String accessTokenFromBackend = prefs.getString('session_access_token') ?? '';
+      String sessionToken =
+          prefs.getString('session_access_token') ?? '';
 
-      // Fallback: If not in SharedPreferences, check AuthBloc state
-      if (accessTokenFromBackend.isEmpty) {
+      if (sessionToken.isEmpty) {
         final authState = authBloc.state;
         if (authState is AuthSuccess && authState.user.token != null) {
-          accessTokenFromBackend = authState.user.token!;
-        } else if (authState is AuthAuthenticated && authState.user.token != null) {
-          accessTokenFromBackend = authState.user.token!;
+          sessionToken = authState.user.token!;
+        } else if (authState is AuthAuthenticated &&
+            authState.user.token != null) {
+          sessionToken = authState.user.token!;
         }
       }
 
-      // 2. Request LiveKit room credentials from backend join endpoint
-      MeetingJoinResult? result;
-      try {
-        result = await meetingBloc.joinMeetingDirect(
-          meetingId: meeting?.id,
-          meetingLink: meeting?.meetingLink,
-        );
-      } catch (e) {
-        debugPrint('Backend join notice: $e');
-      }
-
-      if (!mounted) return;
-
-      // If backend generated a LiveKit room token, use it as the primary token
-      if (result != null && result.token.isNotEmpty) {
-        accessTokenFromBackend = result.token;
-      }
-
-      // 3. Resolve the proper room name (never empty)
-      final String roomName = (result != null && result.roomName.trim().isNotEmpty)
-          ? result.roomName
-          : (meeting?.name.isNotEmpty == true
-              ? meeting!.name
-              : 'Live Loop Room');
-
-      final String serverUrl = (result != null && result.serverUrl.isNotEmpty)
-          ? result.serverUrl
-          : 'wss://live-loop-wdcidnza.livekit.cloud';
-
-      if (accessTokenFromBackend.isEmpty) {
+      if (sessionToken.isEmpty) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Access token is missing. Please log in again.'),
+            content: Text('Session expired. Please log in again.'),
             backgroundColor: AppColors.error,
           ),
         );
         return;
       }
 
+      // 2. Determine target room name
+      final String roomName = requestedRoom ??
+          (meeting?.name.isNotEmpty == true
+              ? meeting!.name
+              : 'kerala-community');
+
+      // 3. Request LiveKit participant token and server URL from backend
+      final MeetingJoinResult? result = await meetingBloc.joinMeetingDirect(
+        meetingId: meeting?.id,
+        meetingLink: meeting?.meetingLink,
+        roomName: roomName,
+      );
+
+      if (!mounted) return;
+
+      if (result == null || result.token.isEmpty) {
+        throw Exception(
+          'LiveKit participant token was not received from server.',
+        );
+      }
+
       // Refresh meetings list so member counts update across the app
       meetingBloc.add(const LoadMeetingsEvent());
 
-      // 4. Navigate to VideoCallScreen passing the retrieved access token and room name
+      // 4. Navigate to VideoCallScreen passing the LIVEKIT participant token (NOT the app login token)
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => VideoCallScreen(
-            serverUrl: serverUrl,
-            token: accessTokenFromBackend,
-            roomName: roomName,
+            serverUrl: result.serverUrl,
+            token: result.token,
+            roomName: result.roomName,
           ),
         ),
       );
@@ -307,12 +305,13 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
                         if (currentMeetings.isEmpty) {
                           return LiveNowCard(
                             title: 'Good conversations happen here.',
-                            subtitle: 'Weekly community meetup',
+                            subtitle: 'Kerala Community meetup',
                             startTime: _formatStartTime(DateTime.now()),
                             memberCount: 1,
                             memberInitials: const ['J', 'S', 'M', 'A'],
                             isJoining: _joiningMeetingId != null,
-                            onJoinPressed: () => _handleJoinMeeting(),
+                            onJoinPressed: () =>
+                                _handleJoinMeeting(null, 'kerala-community'),
                           );
                         }
 

@@ -6,10 +6,15 @@ class JoinMeeting {
 
   const JoinMeeting(this.repository);
 
-  Future<MeetingJoinResult> call({String? meetingId, String? meetingLink}) {
+  Future<MeetingJoinResult> call({
+    String? meetingId,
+    String? meetingLink,
+    String? roomName,
+  }) {
     return repository.joinMeeting(
       meetingId: meetingId,
       meetingLink: meetingLink,
+      roomName: roomName,
     );
   }
 }
