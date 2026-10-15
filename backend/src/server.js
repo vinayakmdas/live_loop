@@ -43,6 +43,12 @@ app.use((req, res) => {
 // ── Global error handler (must be last) ───────────────────────────────────
 app.use(errorMiddleware);
 
+const http = require("http");
+const { initSocket } = require("./socket/chatSocket");
+
+const server = http.createServer(app);
+const io = initSocket(server);
+
 const PORT = process.env.PORT || 5001;
 
 const startServer = async () => {
@@ -58,8 +64,9 @@ const startServer = async () => {
     console.log(`[LiveKit] Config loaded: ${lkConfig.serverUrl} (key prefix: ${lkConfig.apiKey.substring(0, 4)}...)`);
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`Socket.IO chat server initialized`);
     console.log(`Health: http://localhost:${PORT}/api/health`);
   });
 };
