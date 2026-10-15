@@ -97,6 +97,7 @@ const generateLiveKitToken = async ({
   });
 
   // Grant video room join permissions
+  // In livekit-server-sdk, canPublish: true automatically grants camera, microphone, and screen-sharing permissions.
   at.addGrant({
     roomJoin: true,
     room: cleanRoomName,
@@ -105,20 +106,28 @@ const generateLiveKitToken = async ({
     canPublishData: true,
   });
 
-  const jwt = await at.toJwt();
+  try {
+    const jwt = await at.toJwt();
 
-  // Safe diagnostic logging (never log secret or full JWT)
-  console.log(
-    `[LiveKit] Participant token generated successfully | ` +
-      `Room: "${cleanRoomName}" | ` +
-      `Identity: "${identity}" | ` +
-      `API Key: ${maskKey(config.apiKey)} | ` +
-      `Server: ${config.serverUrl || "wss://live-loop-wdcidnza.livekit.cloud"} | ` +
-      `TTL: ${ttl} | ` +
-      `TokenLength: ${jwt.length}`
-  );
+    // Safe diagnostic logging (never log secret or full JWT)
+    console.log(
+      `[LiveKit] Participant token generated successfully | ` +
+        `Room: "${cleanRoomName}" | ` +
+        `Identity: "${identity}" | ` +
+        `API Key: ${maskKey(config.apiKey)} | ` +
+        `Server: ${config.serverUrl || "wss://live-loop-wdcidnza.livekit.cloud"} | ` +
+        `TTL: ${ttl} | ` +
+        `TokenLength: ${jwt.length}`
+    );
 
-  return jwt;
+    return jwt;
+  } catch (err) {
+    console.error(
+      `[LiveKit Token Generation Error] Failed to generate token for Room: "${cleanRoomName}", Identity: "${identity}":`,
+      err
+    );
+    throw err;
+  }
 };
 
 module.exports = {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/appcolors.dart';
 
 class MeetingCard extends StatelessWidget {
@@ -6,6 +7,7 @@ class MeetingCard extends StatelessWidget {
   final String description;
   final String category;
   final String accessType;
+  final String? joinCode;
   final String meetingType;
   final DateTime? scheduledStartTime;
   final VoidCallback? onTap;
@@ -16,6 +18,7 @@ class MeetingCard extends StatelessWidget {
     required this.description,
     required this.category,
     required this.accessType,
+    this.joinCode,
     this.meetingType = 'instant',
     this.scheduledStartTime,
     this.onTap,
@@ -26,11 +29,7 @@ class MeetingCard extends StatelessWidget {
     return text[0].toUpperCase() + text.substring(1);
   }
 
-  String _formatAccessType(String text) {
-    if (text == 'anyone_with_link') return 'Link access';
-    if (text == 'invite_only') return 'Invite only';
-    return text;
-  }
+  bool get _isPrivate => accessType.toLowerCase() == 'private';
 
   bool get _isScheduledMeeting =>
       meetingType.toLowerCase() == 'scheduled' ||
@@ -144,27 +143,87 @@ class MeetingCard extends StatelessWidget {
                     backgroundColor: AppColors.background,
                     textColor: AppColors.primary,
                   ),
-                  _BadgeChip(
-                    icon: accessType == 'anyone_with_link'
-                        ? Icons.link
-                        : Icons.lock_outline,
-                    label: _formatAccessType(accessType),
-                    backgroundColor: AppColors.background,
-                    textColor: AppColors.textPrimary,
-                  ),
-                  if (isScheduled)
+                  if (_isPrivate)
                     _BadgeChip(
-                      icon: Icons.calendar_today_outlined,
-                      label: scheduleLabel,
-                      backgroundColor: AppColors.background,
+                      icon: Icons.lock_outline,
+                      label: 'Private',
+                      backgroundColor: AppColors.warning.withValues(alpha: 0.12),
                       textColor: AppColors.warning,
                     )
                   else
+                    _BadgeChip(
+                      icon: Icons.public,
+                      label: 'Public',
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                      textColor: AppColors.primary,
+                    ),
+                  if (_isPrivate && joinCode != null && joinCode!.isNotEmpty)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: joinCode!));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.check_circle_outline, color: AppColors.white, size: 16),
+                                const SizedBox(width: 8),
+                                Text('Meeting code $joinCode copied to clipboard!'),
+                              ],
+                            ),
+                            backgroundColor: AppColors.success,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.key_outlined, size: 12, color: AppColors.primary),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Code: $joinCode',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            const Icon(Icons.copy_rounded, size: 11, color: AppColors.primary),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (isScheduled) ...[
+                    if (hasValidTime && DateTime.now().isBefore(scheduledStartTime!.toLocal()))
+                      _BadgeChip(
+                        icon: Icons.access_time_rounded,
+                        label: 'Starts: $scheduleLabel',
+                        backgroundColor: AppColors.warning.withValues(alpha: 0.12),
+                        textColor: AppColors.warning,
+                      )
+                    else
+                      _BadgeChip(
+                        icon: Icons.fiber_manual_record,
+                        label: hasValidTime ? 'Live Now · Scheduled ($scheduleLabel)' : 'Live Now',
+                        backgroundColor: AppColors.success.withValues(alpha: 0.12),
+                        textColor: AppColors.success,
+                      ),
+                  ] else
                     const _BadgeChip(
                       icon: Icons.bolt_outlined,
-                      label: 'Instant Meeting',
+                      label: 'Live Now',
                       backgroundColor: AppColors.background,
-                      textColor: AppColors.inactiveText,
+                      textColor: AppColors.primary,
                     ),
                 ],
               ),

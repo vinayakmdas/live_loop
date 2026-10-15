@@ -8,6 +8,7 @@ const {
 const {
   createMeeting,
   getMyMeetings,
+  searchMeetings,
   getMeeting,
   updateMeeting,
   archiveMeeting,
@@ -24,6 +25,9 @@ router.use(protect);
 // ── /api/meetings ──────────────────────────────────────────────────────────
 router.post("/", validateCreateMeeting, createMeeting);
 router.get("/", getMyMeetings);
+
+// ── /api/meetings/search ───────────────────────────────────────────────────
+router.get("/search", searchMeetings);
 
 // ── /api/meetings/join & /token ──────────────────────────────────────────
 router.post("/join", joinMeeting);

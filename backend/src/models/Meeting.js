@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const CATEGORIES = ["project", "friends", "community", "team", "other"];
-const ACCESS_TYPES = ["invite_only", "anyone_with_link"];
+const ACCESS_TYPES = ["public", "private", "invite_only", "anyone_with_link"];
 const MEETING_TYPES = ["instant", "scheduled", "later"];
 
 // ─── Member sub-document ───────────────────────────────────────────────────
@@ -82,7 +82,21 @@ const meetingSchema = new mongoose.Schema(
         values: ACCESS_TYPES,
         message: "Access type must be one of: " + ACCESS_TYPES.join(", "),
       },
-      default: "invite_only",
+      default: "public",
+    },
+
+    // Unique code / password required to join private meetings
+    password: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+
+    // Retained for backwards compatibility with existing clients/data
+    joinCode: {
+      type: String,
+      default: null,
+      trim: true,
     },
 
     // Meeting timing configuration: instant vs scheduled for later
@@ -148,16 +162,29 @@ const meetingSchema = new mongoose.Schema(
 meetingSchema.index({ createdBy: 1, status: 1 });
 meetingSchema.index({ "members.user": 1, status: 1 });
 meetingSchema.index({ category: 1, status: 1 });
+meetingSchema.index({ accessType: 1, status: 1 });
+meetingSchema.index({ accessType: 1, name: 1, status: 1 });
+meetingSchema.index({ joinCode: 1 }, { sparse: true });
 meetingSchema.index({ createdAt: -1 });
 
 // ─── Instance helper: check if a user is a member ─────────────────────────
 meetingSchema.methods.isMember = function (userId) {
-  return this.members.some((m) => m.user.toString() === userId.toString());
+  if (!userId || !Array.isArray(this.members)) return false;
+  const targetId = userId.toString();
+  return this.members.some((m) => {
+    if (!m || !m.user) return false;
+    const memberId = m.user._id ? m.user._id.toString() : m.user.toString();
+    return memberId === targetId;
+  });
 };
 
 // ─── Instance helper: check if a user is the owner ────────────────────────
 meetingSchema.methods.isOwner = function (userId) {
-  return this.createdBy.toString() === userId.toString();
+  if (!userId || !this.createdBy) return false;
+  const ownerId = this.createdBy._id
+    ? this.createdBy._id.toString()
+    : this.createdBy.toString();
+  return ownerId === userId.toString();
 };
 
 const Meeting = mongoose.model("Meeting", meetingSchema);

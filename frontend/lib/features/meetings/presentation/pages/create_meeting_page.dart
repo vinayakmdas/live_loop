@@ -7,7 +7,6 @@ import '../bloc/meeting_event.dart';
 import '../bloc/meeting_state.dart';
 import '../widgets/meeting_access_option.dart';
 import '../widgets/meeting_form_field.dart';
-import '../widgets/meeting_timing_option.dart';
 
 class CreateMeetingPage extends StatelessWidget {
   const CreateMeetingPage({super.key});
@@ -35,6 +34,9 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _scheduleForLater = false;
 
   static const _categories = ['Project', 'Friends', 'Community', 'Team', 'Other'];
   static const _months = [
@@ -46,6 +48,7 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -142,13 +145,26 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
 
   void _submit(BuildContext context, MeetingState state) {
     FocusScope.of(context).unfocus();
+    final isScheduled = _scheduleForLater && state.scheduledStartTime != null;
+
+    if (isScheduled && state.scheduledStartTime!.isBefore(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a future date and time for scheduled meetings.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     context.read<MeetingBloc>().add(MeetingSubmitted(
       name: _nameController.text,
       description: _descriptionController.text,
       category: state.category,
       accessType: state.accessType,
-      meetingType: state.meetingType,
-      scheduledStartTime: state.scheduledStartTime,
+      password: _passwordController.text,
+      meetingType: isScheduled ? 'scheduled' : 'instant',
+      scheduledStartTime: isScheduled ? state.scheduledStartTime : null,
     ));
   }
 
@@ -227,7 +243,7 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                                 const SizedBox(height: 26),
                                 MeetingFormField(
                                   label: 'Meeting name',
-                                  hint: 'e.g. Kerala Community',
+                                  hint: 'e.g. Maths Class',
                                   controller: _nameController,
                                 ),
                                 const SizedBox(height: 20),
@@ -282,7 +298,7 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
 
                                 const SizedBox(height: 22),
                                 const Text(
-                                  'When do you want to start?',
+                                  'Who can access this space?',
                                   style: TextStyle(
                                     color: AppColors.textPrimary,
                                     fontSize: 13,
@@ -290,34 +306,26 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                                   ),
                                 ),
                                 const SizedBox(height: 10),
-                                MeetingTimingOption(
-                                  title: 'Start an Instant Meeting',
-                                  subtitle: 'Create and start the meeting right now',
-                                  icon: Icons.bolt_outlined,
-                                  value: 'instant',
-                                  groupValue: state.meetingType,
-                                  onChanged: (value) {
-                                    context.read<MeetingBloc>().add(MeetingTypeChanged(value));
-                                  },
+                                MeetingAccessOption(
+                                  title: 'Public',
+                                  subtitle: 'Visible to everyone. Anyone in Live Loop can see and join.',
+                                  icon: Icons.public,
+                                  value: 'public',
+                                  groupValue: state.accessType,
+                                  onChanged: (value) => context.read<MeetingBloc>().add(MeetingAccessChanged(value)),
                                 ),
                                 const SizedBox(height: 10),
-                                MeetingTimingOption(
-                                  title: 'Create a Meeting for Later',
-                                  subtitle: 'Pick a date and time to schedule for later',
-                                  icon: Icons.calendar_today_outlined,
-                                  value: 'scheduled',
-                                  groupValue: state.meetingType,
-                                  onChanged: (value) {
-                                    context.read<MeetingBloc>().add(MeetingTypeChanged(value));
-                                    if (state.scheduledStartTime == null) {
-                                      final defaultTime = DateTime.now().add(const Duration(hours: 1));
-                                      context.read<MeetingBloc>().add(MeetingScheduleChanged(defaultTime));
-                                    }
-                                  },
+                                MeetingAccessOption(
+                                  title: 'Private',
+                                  subtitle: 'Hidden from public list. Attendees search by name and enter room password to join.',
+                                  icon: Icons.lock_outline,
+                                  value: 'private',
+                                  groupValue: state.accessType,
+                                  onChanged: (value) => context.read<MeetingBloc>().add(MeetingAccessChanged(value)),
                                 ),
 
-                                if (state.isScheduled) ...[
-                                  const SizedBox(height: 12),
+                                if (state.accessType == 'private') ...[
+                                  const SizedBox(height: 14),
                                   Container(
                                     padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
@@ -330,14 +338,10 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                                       children: [
                                         const Row(
                                           children: [
-                                            Icon(
-                                              Icons.access_time_rounded,
-                                              size: 16,
-                                              color: AppColors.primary,
-                                            ),
+                                            Icon(Icons.lock_outline, size: 16, color: AppColors.warning),
                                             SizedBox(width: 8),
                                             Text(
-                                              'Schedule details',
+                                              'Room Password (Required)',
                                               style: TextStyle(
                                                 color: AppColors.textPrimary,
                                                 fontSize: 12,
@@ -346,41 +350,51 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 12),
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: _SchedulePickerButton(
-                                                icon: Icons.calendar_month_outlined,
-                                                label: state.scheduledStartTime != null
-                                                    ? _formatDate(state.scheduledStartTime!)
-                                                    : 'Select Date',
-                                                onTap: () => _selectDate(context, state),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: _SchedulePickerButton(
-                                                icon: Icons.schedule_outlined,
-                                                label: state.scheduledStartTime != null
-                                                    ? _formatTime(state.scheduledStartTime!)
-                                                    : 'Select Time',
-                                                onTap: () => _selectTime(context, state),
-                                              ),
-                                            ),
-                                          ],
+                                        const SizedBox(height: 6),
+                                        const Text(
+                                          'Attendees will search this room by name and must enter this password to join.',
+                                          style: TextStyle(
+                                            color: AppColors.inactiveText,
+                                            fontSize: 11,
+                                          ),
                                         ),
-                                        if (state.scheduledStartTime != null) ...[
-                                          const SizedBox(height: 10),
-                                          Text(
-                                            'Meeting starts on ${_formatDateTime(state.scheduledStartTime!)}',
-                                            style: const TextStyle(
-                                              color: AppColors.primary,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
+                                        const SizedBox(height: 10),
+                                        TextField(
+                                          controller: _passwordController,
+                                          obscureText: _obscurePassword,
+                                          style: const TextStyle(
+                                            color: AppColors.textPrimary,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          decoration: InputDecoration(
+                                            hintText: 'e.g. maths123',
+                                            hintStyle: const TextStyle(color: AppColors.hintText, fontSize: 12),
+                                            filled: true,
+                                            fillColor: AppColors.navigationBackground,
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                            suffixIcon: IconButton(
+                                              icon: Icon(
+                                                _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                                color: AppColors.inactiveText,
+                                                size: 18,
+                                              ),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _obscurePassword = !_obscurePassword;
+                                                });
+                                              },
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(10),
+                                              borderSide: const BorderSide(color: AppColors.navigationBorder),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(10),
+                                              borderSide: const BorderSide(color: AppColors.primary),
                                             ),
                                           ),
-                                        ],
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -388,27 +402,187 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
 
                                 const SizedBox(height: 22),
                                 const Text(
-                                  'Who can access this space?',
+                                  'Schedule for Later',
                                   style: TextStyle(
                                     color: AppColors.textPrimary,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                const SizedBox(height: 10),
-                                MeetingAccessOption(
-                                  title: 'Invite only',
-                                  value: 'invite_only',
-                                  groupValue: state.accessType,
-                                  onChanged: (value) => context.read<MeetingBloc>().add(MeetingAccessChanged(value)),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Optional: Pick a future date and time for this meeting to automatically become available. Leave unselected to start instantly.',
+                                  style: TextStyle(
+                                    color: AppColors.inactiveText,
+                                    fontSize: 12,
+                                  ),
                                 ),
                                 const SizedBox(height: 10),
-                                MeetingAccessOption(
-                                  title: 'Anyone with the link',
-                                  value: 'anyone_with_link',
-                                  groupValue: state.accessType,
-                                  onChanged: (value) => context.read<MeetingBloc>().add(MeetingAccessChanged(value)),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: _scheduleForLater
+                                        ? AppColors.selectedBackground.withValues(alpha: 0.55)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: _scheduleForLater ? AppColors.primary : AppColors.navigationBorder,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      InkWell(
+                                        borderRadius: BorderRadius.circular(12),
+                                        onTap: () {
+                                          setState(() {
+                                            _scheduleForLater = !_scheduleForLater;
+                                            if (_scheduleForLater) {
+                                              if (state.scheduledStartTime == null) {
+                                                final defaultTime = DateTime.now().add(const Duration(hours: 1));
+                                                context.read<MeetingBloc>().add(MeetingScheduleChanged(defaultTime));
+                                              }
+                                            } else {
+                                              context.read<MeetingBloc>().add(const MeetingScheduleChanged(null));
+                                            }
+                                          });
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                  color: _scheduleForLater
+                                                      ? AppColors.primary.withValues(alpha: 0.15)
+                                                      : AppColors.background,
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: Icon(
+                                                  Icons.calendar_today_outlined,
+                                                  size: 18,
+                                                  color: _scheduleForLater ? AppColors.primary : AppColors.grey,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              const Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Schedule for Later',
+                                                      style: TextStyle(
+                                                        color: AppColors.textPrimary,
+                                                        fontSize: 14,
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                    SizedBox(height: 2),
+                                                    Text(
+                                                      'Choose date & time. Uncheck to start instantly.',
+                                                      style: TextStyle(
+                                                        color: AppColors.inactiveText,
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Switch(
+                                                value: _scheduleForLater,
+                                                activeThumbColor: AppColors.primary,
+                                                onChanged: (val) {
+                                                  setState(() {
+                                                    _scheduleForLater = val;
+                                                    if (_scheduleForLater) {
+                                                      if (state.scheduledStartTime == null) {
+                                                        final defaultTime = DateTime.now().add(const Duration(hours: 1));
+                                                        context.read<MeetingBloc>().add(MeetingScheduleChanged(defaultTime));
+                                                      }
+                                                    } else {
+                                                      context.read<MeetingBloc>().add(const MeetingScheduleChanged(null));
+                                                    }
+                                                  });
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      if (_scheduleForLater) ...[
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Divider(color: AppColors.navigationBorder, height: 1),
+                                              const SizedBox(height: 12),
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: _SchedulePickerButton(
+                                                      icon: Icons.calendar_month_outlined,
+                                                      label: state.scheduledStartTime != null
+                                                          ? _formatDate(state.scheduledStartTime!)
+                                                          : 'Select Date',
+                                                      onTap: () => _selectDate(context, state),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  Expanded(
+                                                    child: _SchedulePickerButton(
+                                                      icon: Icons.schedule_outlined,
+                                                      label: state.scheduledStartTime != null
+                                                          ? _formatTime(state.scheduledStartTime!)
+                                                          : 'Select Time',
+                                                      onTap: () => _selectTime(context, state),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              if (state.scheduledStartTime != null) ...[
+                                                const SizedBox(height: 10),
+                                                Row(
+                                                  children: [
+                                                    const Icon(Icons.info_outline, size: 14, color: AppColors.primary),
+                                                    const SizedBox(width: 6),
+                                                    Expanded(
+                                                      child: Text(
+                                                        'Room will automatically become available on ${_formatDateTime(state.scheduledStartTime!)}',
+                                                        style: const TextStyle(
+                                                          color: AppColors.primary,
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                 ),
+                                if (!_scheduleForLater) ...[
+                                  const SizedBox(height: 8),
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.bolt, size: 15, color: AppColors.grey),
+                                      SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'No schedule selected — this meeting will start instantly upon creation.',
+                                          style: TextStyle(
+                                            color: AppColors.inactiveText,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                                 const SizedBox(height: 20),
                                 const Divider(color: AppColors.navigationBorder, height: 1),
                                 const SizedBox(height: 16),
@@ -451,7 +625,9 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                                               child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
                                             )
                                           : Text(
-                                              state.isScheduled ? 'Schedule meeting' : 'Create meeting',
+                                              _scheduleForLater && state.scheduledStartTime != null
+                                                  ? 'Schedule meeting'
+                                                  : 'Create meeting (Starts instantly)',
                                               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                                             ),
                                     ),

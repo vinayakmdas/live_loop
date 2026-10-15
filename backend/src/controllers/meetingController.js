@@ -5,42 +5,83 @@ const { generateLiveKitToken } = require("../utils/generateLiveKitToken");
 /**
  * Serialize a meeting document into the safe shape returned by every endpoint.
  * Never exposes password, refresh tokens, or internal hashes.
+ * Only owners and members can see the private joinCode.
  */
-const serializeMeeting = (meeting) => ({
-  id: meeting._id,
-  name: meeting.name,
-  description: meeting.description,
-  category: meeting.category,
-  accessType: meeting.accessType,
-  meetingType: meeting.meetingType || "instant",
-  scheduledStartTime: meeting.scheduledStartTime || null,
-  meetingLink: meeting.meetingLink,
-  status: meeting.status,
-  createdBy: meeting.createdBy
-    ? {
-        id: meeting.createdBy._id,
-        name: meeting.createdBy.name,
-        username: meeting.createdBy.username,
-      }
-    : null,
-  memberCount: meeting.members ? meeting.members.length : 0,
-  memberInitials: Array.isArray(meeting.members)
-    ? meeting.members
-        .map((m) =>
-          m.user && m.user.name
-            ? m.user.name.trim().charAt(0).toUpperCase()
-            : null
-        )
-        .filter(Boolean)
-    : [],
-  createdAt: meeting.createdAt,
-  updatedAt: meeting.updatedAt,
-});
+const serializeMeeting = (meeting, currentUserId = null) => {
+  const isOwner =
+    currentUserId &&
+    meeting.createdBy &&
+    (meeting.createdBy._id?.toString() === currentUserId.toString() ||
+      meeting.createdBy.toString() === currentUserId.toString());
+
+  const isMember =
+    currentUserId &&
+    Array.isArray(meeting.members) &&
+    meeting.members.some(
+      (m) =>
+        (m.user?._id?.toString() || m.user?.toString()) ===
+        currentUserId.toString()
+    );
+
+  const canSeeCode = isOwner || isMember;
+  const now = new Date();
+  const isScheduledFuture =
+    (meeting.meetingType === "scheduled" || meeting.meetingType === "later") &&
+    meeting.scheduledStartTime &&
+    new Date(meeting.scheduledStartTime) > now;
+  const isAvailable = !isScheduledFuture;
+
+  return {
+    id: meeting._id,
+    name: meeting.name,
+    description: meeting.description,
+    category: meeting.category,
+    accessType: meeting.accessType,
+    isPrivate: meeting.accessType === "private",
+    isPublic: meeting.accessType === "public",
+    joinCode: canSeeCode ? meeting.joinCode || meeting.password || null : null,
+    password: canSeeCode ? meeting.password || meeting.joinCode || null : null,
+    hasPassword: meeting.accessType === "private",
+    isAvailable,
+    meetingType: meeting.meetingType || "instant",
+    scheduledStartTime: meeting.scheduledStartTime || null,
+    meetingLink: meeting.meetingLink,
+    status: meeting.status,
+    createdBy: meeting.createdBy
+      ? {
+          id: meeting.createdBy._id || meeting.createdBy,
+          name: meeting.createdBy.name,
+          username: meeting.createdBy.username,
+        }
+      : null,
+    memberCount: meeting.members ? meeting.members.length : 0,
+    memberInitials: Array.isArray(meeting.members)
+      ? meeting.members
+          .map((m) =>
+            m.user && m.user.name
+              ? m.user.name.trim().charAt(0).toUpperCase()
+              : null
+          )
+          .filter(Boolean)
+      : [],
+    createdAt: meeting.createdAt,
+    updatedAt: meeting.updatedAt,
+  };
+};
 
 // ── POST /api/meetings ─────────────────────────────────────────────────────
 const createMeeting = async (req, res, next) => {
   try {
-    const { name, description, category, accessType, meetingType, scheduledStartTime } = req.body;
+    const {
+      name,
+      description,
+      category,
+      accessType,
+      meetingType,
+      scheduledStartTime,
+      password,
+      joinCode,
+    } = req.body;
     const userId = req.user.id;
 
     const meeting = await meetingService.createMeeting({
@@ -50,11 +91,12 @@ const createMeeting = async (req, res, next) => {
       accessType,
       meetingType,
       scheduledStartTime,
+      password: password || joinCode || null,
       userId,
     });
 
     return sendSuccess(res, 201, "Meeting created successfully", {
-      meeting: serializeMeeting(meeting),
+      meeting: serializeMeeting(meeting, userId),
     });
   } catch (err) {
     next(err);
@@ -62,22 +104,47 @@ const createMeeting = async (req, res, next) => {
 };
 
 // ── GET /api/meetings ──────────────────────────────────────────────────────
+// Returns the public meeting list visible to everyone. Private rooms do NOT appear.
 const getMyMeetings = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const page = parseInt(req.query.page, 10) || 1;
-    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
     const category = req.query.category || null;
+    const scope = req.query.scope || null;
 
     const { meetings, total } = await meetingService.getUserMeetings(userId, {
       page,
       limit,
       category,
+      scope,
     });
 
     return sendSuccess(res, 200, "Meetings retrieved successfully", {
-      meetings: meetings.map(serializeMeeting),
+      meetings: meetings.map((m) => serializeMeeting(m, userId)),
       pagination: { total, page, limit, pages: Math.ceil(total / limit) },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── GET /api/meetings/search ──────────────────────────────────────────────
+// Search private rooms by name (e.g. "Maths Class")
+const searchMeetings = async (req, res, next) => {
+  try {
+    const query = req.query.q || req.query.name || req.query.query || "";
+    const type = req.query.type || "private";
+    const userId = req.user.id;
+
+    const meetings = await meetingService.searchMeetings({
+      query,
+      type,
+      userId,
+    });
+
+    return sendSuccess(res, 200, "Search results retrieved successfully", {
+      meetings: meetings.map((m) => serializeMeeting(m, userId)),
     });
   } catch (err) {
     next(err);
@@ -92,7 +159,7 @@ const getMeeting = async (req, res, next) => {
       req.user.id
     );
     return sendSuccess(res, 200, "Meeting retrieved successfully", {
-      meeting: serializeMeeting(meeting),
+      meeting: serializeMeeting(meeting, req.user.id),
     });
   } catch (err) {
     next(err);
@@ -108,7 +175,7 @@ const updateMeeting = async (req, res, next) => {
       req.body
     );
     return sendSuccess(res, 200, "Meeting updated successfully", {
-      meeting: serializeMeeting(updated),
+      meeting: serializeMeeting(updated, req.user.id),
     });
   } catch (err) {
     next(err);
@@ -128,16 +195,33 @@ const archiveMeeting = async (req, res, next) => {
 // ── POST /api/meetings/join or /api/meetings/:meetingId/join ───────────────
 const joinMeeting = async (req, res, next) => {
   try {
-    const { meetingLink, meetingId, roomName: requestedRoomName } = req.body || {};
+    const {
+      meetingLink,
+      meetingId,
+      joinCode,
+      passcode,
+      password,
+      roomName: requestedRoomName,
+    } = req.body || {};
     const queryRoomName = req.query ? req.query.roomName : null;
+    const queryPasscode = req.query
+      ? req.query.passcode || req.query.password || req.query.joinCode
+      : null;
+    const effectivePasscode = passcode || password || queryPasscode;
     const customRoom = (requestedRoomName || queryRoomName || "").trim();
     const targetMeetingId = req.params.meetingId || meetingId;
 
     let meeting;
-    if (meetingLink || targetMeetingId) {
+    if (meetingLink || targetMeetingId || joinCode) {
       meeting = await meetingService.joinMeeting(req.user.id, {
-        meetingLink: typeof meetingLink === "string" ? meetingLink.trim() : null,
+        meetingLink:
+          typeof meetingLink === "string" ? meetingLink.trim() : null,
         meetingId: targetMeetingId,
+        joinCode: typeof joinCode === "string" ? joinCode.trim() : null,
+        passcode:
+          typeof effectivePasscode === "string"
+            ? effectivePasscode.trim()
+            : null,
       });
     } else if (customRoom) {
       const Meeting = require("../models/Meeting");
@@ -155,13 +239,17 @@ const joinMeeting = async (req, res, next) => {
           name: customRoom,
           description: `Live room: ${customRoom}`,
           category: "community",
-          accessType: "anyone_with_link",
+          accessType: "public",
           meetingType: "instant",
           userId: req.user.id,
         });
       } else {
         foundMeeting = await meetingService.joinMeeting(req.user.id, {
           meetingId: foundMeeting._id,
+          passcode:
+            typeof effectivePasscode === "string"
+              ? effectivePasscode.trim()
+              : null,
         });
       }
       meeting = foundMeeting;
@@ -177,7 +265,7 @@ const joinMeeting = async (req, res, next) => {
           name: "Live Loop Main Room",
           description: "Weekly community meetup",
           category: "community",
-          accessType: "anyone_with_link",
+          accessType: "public",
           meetingType: "instant",
           userId: req.user.id,
         });
@@ -211,12 +299,17 @@ const joinMeeting = async (req, res, next) => {
       process.env.LIVEKIT_URL || "wss://live-loop-wdcidnza.livekit.cloud";
 
     return sendSuccess(res, 200, "Joined meeting successfully", {
-      meeting: serializeMeeting(meeting),
+      meeting: serializeMeeting(meeting, req.user.id),
       token: livekitToken,
       roomName: effectiveRoomName,
       serverUrl,
     });
   } catch (err) {
+    if (err.requiresPasscode) {
+      return sendError(res, 403, err.message, [
+        { code: "PASSCODE_REQUIRED", requiresPasscode: true },
+      ]);
+    }
     next(err);
   }
 };
@@ -244,6 +337,7 @@ const deleteMeeting = async (req, res, next) => {
 module.exports = {
   createMeeting,
   getMyMeetings,
+  searchMeetings,
   getMeeting,
   updateMeeting,
   archiveMeeting,

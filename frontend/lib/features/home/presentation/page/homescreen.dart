@@ -17,6 +17,7 @@ import 'package:frontend/features/meetings/domain/entities/meeting_join_result.d
 import 'package:frontend/features/meetings/presentation/bloc/meeting_bloc.dart';
 import 'package:frontend/features/meetings/presentation/bloc/meeting_event.dart';
 import 'package:frontend/features/meetings/presentation/bloc/meeting_state.dart';
+import 'package:frontend/features/meetings/presentation/widgets/meeting_passcode_dialog.dart';
 
 /// Home Screen using BLoC pattern for state management
 class Homescreen extends StatefulWidget {
@@ -135,8 +136,40 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
   Future<void> _handleJoinMeeting([
     MeetingEntity? meeting,
     String? requestedRoom,
+    String? passcode,
   ]) async {
     if (_joiningMeetingId != null) return;
+
+    if (meeting != null && !meeting.isAvailableNow) {
+      final formattedTime = _formatStartTime(meeting.scheduledStartTime);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'This meeting is scheduled for $formattedTime and has not started yet.',
+          ),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      return;
+    }
+
+    // Prompt for code if joining a private meeting without existing access
+    String? effectivePasscode = passcode;
+    if (meeting != null && meeting.isPrivate && (effectivePasscode == null || effectivePasscode.isEmpty)) {
+      if (meeting.joinCode != null && meeting.joinCode!.isNotEmpty) {
+        effectivePasscode = meeting.joinCode;
+      } else {
+        effectivePasscode = await showMeetingPasscodeDialog(
+          context,
+          meetingName: meeting.name,
+        );
+        if (!mounted) return;
+        if (effectivePasscode == null || effectivePasscode.trim().isEmpty) {
+          // User cancelled entering code
+          return;
+        }
+      }
+    }
 
     final targetId =
         meeting?.id ?? meeting?.meetingLink ?? requestedRoom ?? 'live_room';
@@ -178,13 +211,14 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
       final String roomName = requestedRoom ??
           (meeting?.name.isNotEmpty == true
               ? meeting!.name
-              : 'kerala-community');
+              : 'live_room');
 
       // 3. Request LiveKit participant token and server URL from backend
       final MeetingJoinResult? result = await meetingBloc.joinMeetingDirect(
         meetingId: meeting?.id,
         meetingLink: meeting?.meetingLink,
         roomName: roomName,
+        passcode: effectivePasscode,
       );
 
       if (!mounted) return;
@@ -198,6 +232,16 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
       // Refresh meetings list so member counts update across the app
       meetingBloc.add(const LoadMeetingsEvent());
 
+      UserEntity? currentUser;
+      try {
+        final authState = context.read<AuthBloc>().state;
+        if (authState is AuthSuccess) {
+          currentUser = authState.user;
+        } else if (authState is AuthAuthenticated) {
+          currentUser = authState.user;
+        }
+      } catch (_) {}
+
       // 4. Navigate to VideoCallScreen passing the LIVEKIT participant token (NOT the app login token)
       Navigator.push(
         context,
@@ -206,10 +250,12 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
             serverUrl: result.serverUrl,
             token: result.token,
             roomName: result.roomName,
+            userName: currentUser?.name,
           ),
         ),
       );
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[Homescreen JoinMeeting Error] $e\n$stack');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -301,17 +347,61 @@ class _HomeScreenContentState extends State<_HomeScreenContent> {
                           );
                         }
 
-                        // When no live meetings exist yet in the database, display the default live card
+                        // When no live meetings exist yet in the database, display empty-state message
                         if (currentMeetings.isEmpty) {
-                          return LiveNowCard(
-                            title: 'Good conversations happen here.',
-                            subtitle: 'Kerala Community meetup',
-                            startTime: _formatStartTime(DateTime.now()),
-                            memberCount: 1,
-                            memberInitials: const ['J', 'S', 'M', 'A'],
-                            isJoining: _joiningMeetingId != null,
-                            onJoinPressed: () =>
-                                _handleJoinMeeting(null, 'kerala-community'),
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 36,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.navigationBackground,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppColors.navigationBorder,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 64,
+                                  height: 64,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppColors.primary.withValues(alpha: 0.25),
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.meeting_room_outlined,
+                                    size: 32,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'No rooms available yet',
+                                  style: TextStyle(
+                                    color: AppColors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Active public rooms will appear here once created.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: AppColors.grey,
+                                    fontSize: 13,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
                         }
 

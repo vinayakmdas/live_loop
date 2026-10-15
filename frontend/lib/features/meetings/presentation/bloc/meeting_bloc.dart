@@ -5,6 +5,7 @@ import '../../domain/entities/meeting_join_result.dart';
 import '../../domain/usecases/create_meeting.dart';
 import '../../domain/usecases/get_meetings.dart';
 import '../../domain/usecases/join_meeting.dart';
+import '../../domain/usecases/search_meetings.dart';
 import 'meeting_event.dart';
 import 'meeting_state.dart';
 
@@ -12,20 +13,24 @@ class MeetingBloc extends Bloc<MeetingEvent, MeetingState> {
   final CreateMeeting createMeeting;
   final GetMeetings getMeetings;
   final JoinMeeting? joinMeeting;
+  final SearchMeetings? searchMeetings;
 
   MeetingBloc({
     required this.createMeeting,
     required this.getMeetings,
     this.joinMeeting,
+    this.searchMeetings,
   }) : super(const MeetingState()) {
     on<LoadMeetingsEvent>(_onLoadMeetings);
     on<MeetingCategoryChanged>(_onCategoryChanged);
     on<MeetingAccessChanged>(_onAccessChanged);
+    on<MeetingPasswordChanged>(_onPasswordChanged);
     on<MeetingTypeChanged>(_onTypeChanged);
     on<MeetingScheduleChanged>(_onScheduleChanged);
     on<MeetingMessageCleared>(_onMessageCleared);
     on<MeetingSubmitted>(_onMeetingSubmitted);
     on<JoinMeetingRequested>(_onJoinMeeting);
+    on<SearchPrivateMeetingsEvent>(_onSearchPrivateMeetings);
   }
 
   Future<void> _onLoadMeetings(
@@ -88,6 +93,17 @@ class MeetingBloc extends Bloc<MeetingEvent, MeetingState> {
     ));
   }
 
+  void _onPasswordChanged(
+    MeetingPasswordChanged event,
+    Emitter<MeetingState> emit,
+  ) {
+    emit(state.copyWith(
+      password: event.password,
+      status: MeetingStatus.initial,
+      message: '',
+    ));
+  }
+
   void _onTypeChanged(
     MeetingTypeChanged event,
     Emitter<MeetingState> emit,
@@ -135,10 +151,12 @@ class MeetingBloc extends Bloc<MeetingEvent, MeetingState> {
       ));
       return;
     }
-    if (event.meetingType == 'scheduled' && event.scheduledStartTime == null) {
+
+    final effectivePassword = (event.password ?? state.password).trim();
+    if (event.accessType == 'private' && effectivePassword.isEmpty) {
       emit(state.copyWith(
         status: MeetingStatus.failure,
-        message: 'Please select a date and time for your scheduled meeting.',
+        message: 'Please enter a password for your private room.',
       ));
       return;
     }
@@ -149,32 +167,65 @@ class MeetingBloc extends Bloc<MeetingEvent, MeetingState> {
     ));
 
     try {
+      final isScheduled = event.scheduledStartTime != null;
       final newMeeting = await createMeeting(MeetingEntity(
         name: event.name.trim(),
         description: event.description.trim(),
         category: event.category.toLowerCase(),
         accessType: event.accessType,
-        meetingType: event.meetingType,
+        password: effectivePassword.isNotEmpty ? effectivePassword : null,
+        meetingType: isScheduled ? 'scheduled' : 'instant',
         scheduledStartTime: event.scheduledStartTime,
       ));
 
-      // Prepend the newly created meeting to the list for instant reactivity
-      final updatedMeetings = [newMeeting, ...state.meetings];
+      // Public rooms are visible to everyone in the meeting list.
+      // Private rooms do NOT appear in the public meeting list.
+      final updatedMeetings = event.accessType == 'public'
+          ? [newMeeting, ...state.meetings]
+          : state.meetings;
 
-      emit(MeetingLoaded(
+      emit(state.copyWith(
         meetings: updatedMeetings,
         category: '',
-        accessType: 'invite_only',
+        password: '',
+        accessType: 'public',
         meetingType: 'instant',
-        scheduledStartTime: null,
+        clearScheduledStartTime: true,
         status: MeetingStatus.success,
-        message: event.meetingType == 'scheduled'
+        message: isScheduled
             ? 'Meeting scheduled successfully.'
-            : 'Instant meeting created successfully.',
+            : 'Meeting created successfully (starts instantly).',
       ));
     } catch (e) {
       emit(state.copyWith(
         status: MeetingStatus.failure,
+        message: e.toString(),
+      ));
+    }
+  }
+
+  Future<void> _onSearchPrivateMeetings(
+    SearchPrivateMeetingsEvent event,
+    Emitter<MeetingState> emit,
+  ) async {
+    emit(state.copyWith(
+      isSearchingPrivate: true,
+      searchPrivateQuery: event.query,
+      message: '',
+    ));
+
+    try {
+      final results = searchMeetings != null
+          ? await searchMeetings!(query: event.query, type: 'private')
+          : <MeetingEntity>[];
+      emit(state.copyWith(
+        isSearchingPrivate: false,
+        privateSearchResults: results,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        isSearchingPrivate: false,
+        privateSearchResults: [],
         message: e.toString(),
       ));
     }
@@ -192,6 +243,7 @@ class MeetingBloc extends Bloc<MeetingEvent, MeetingState> {
         meetingId: event.meetingId,
         meetingLink: event.meetingLink,
         roomName: event.roomName,
+        passcode: event.passcode,
       );
 
       final updatedMeetings = state.meetings.map((m) {
@@ -222,12 +274,19 @@ class MeetingBloc extends Bloc<MeetingEvent, MeetingState> {
     String? meetingId,
     String? meetingLink,
     String? roomName,
+    String? passcode,
   }) async {
     if (joinMeeting == null) return null;
     return joinMeeting!(
       meetingId: meetingId,
       meetingLink: meetingLink,
       roomName: roomName,
+      passcode: passcode,
     );
+  }
+
+  Future<List<MeetingEntity>> searchPrivateMeetingsDirect(String query) async {
+    if (searchMeetings == null) return [];
+    return searchMeetings!(query: query, type: 'private');
   }
 }

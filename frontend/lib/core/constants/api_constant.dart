@@ -19,6 +19,9 @@ class ApiConstants {
   static const String refreshEndpoint = "/api/auth/refresh";
   static const String logoutEndpoint = "/api/auth/logout";
   static const String meetingsEndpoint = "/api/meetings";
+  static const String searchMeetingsEndpoint = "/api/meetings/search";
+  static String searchMeetingsUrl(String query, {String type = 'private'}) =>
+      "/api/meetings/search?q=${Uri.encodeComponent(query)}&type=$type";
   static const String joinMeetingEndpoint = "/api/meetings/join";
   static String meetingJoinEndpoint(String id) => "/api/meetings/$id/join";
 }

@@ -42,8 +42,16 @@ const errorMiddleware = (err, req, res, next) => {
   }
 
   // --- Fallback ---
-  console.error("[Error Middleware]", err);
-  return sendError(res, 500, "Something went wrong on the server");
+  console.error(
+    `[Error Middleware] 500 Internal Error on ${req.method} ${req.originalUrl}:`,
+    err
+  );
+  return sendError(
+    res,
+    500,
+    err.message || "Something went wrong on the server",
+    process.env.NODE_ENV === "development" ? [err.stack] : []
+  );
 };
 
 module.exports = errorMiddleware;

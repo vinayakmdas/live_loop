@@ -19,6 +19,7 @@ import 'package:frontend/features/meetings/data/repositories/meeting_repository_
 import 'package:frontend/features/meetings/domain/usecases/create_meeting.dart';
 import 'package:frontend/features/meetings/domain/usecases/get_meetings.dart';
 import 'package:frontend/features/meetings/domain/usecases/join_meeting.dart';
+import 'package:frontend/features/meetings/domain/usecases/search_meetings.dart';
 import 'package:frontend/features/meetings/presentation/bloc/meeting_bloc.dart';
 
 void main() async {
@@ -55,6 +56,7 @@ void main() async {
   final createMeetingUseCase = CreateMeeting(meetingRepository);
   final getMeetingsUseCase = GetMeetings(meetingRepository);
   final joinMeetingUseCase = JoinMeeting(meetingRepository);
+  final searchMeetingsUseCase = SearchMeetings(meetingRepository);
 
   final authBloc = AuthBloc(
     loginUseCase: loginUseCase,
@@ -82,6 +84,7 @@ void main() async {
             createMeeting: createMeetingUseCase,
             getMeetings: getMeetingsUseCase,
             joinMeeting: joinMeetingUseCase,
+            searchMeetings: searchMeetingsUseCase,
           ),
         ),
       ],

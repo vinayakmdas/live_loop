@@ -10,11 +10,13 @@ class JoinMeeting {
     String? meetingId,
     String? meetingLink,
     String? roomName,
+    String? passcode,
   }) {
     return repository.joinMeeting(
       meetingId: meetingId,
       meetingLink: meetingLink,
       roomName: roomName,
+      passcode: passcode,
     );
   }
 }

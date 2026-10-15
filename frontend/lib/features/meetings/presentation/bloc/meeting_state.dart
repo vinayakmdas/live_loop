@@ -8,23 +8,31 @@ class MeetingState extends Equatable {
   final List<MeetingEntity> meetings;
   final String category;
   final String accessType;
+  final String password;
   final String meetingType; // 'instant' or 'scheduled'
   final DateTime? scheduledStartTime;
   final MeetingStatus status;
   final String message;
   final MeetingJoinResult? joinResult;
   final bool isJoining;
+  final List<MeetingEntity> privateSearchResults;
+  final bool isSearchingPrivate;
+  final String searchPrivateQuery;
 
   const MeetingState({
     this.meetings = const [],
     this.category = '',
-    this.accessType = 'invite_only',
+    this.accessType = 'public',
+    this.password = '',
     this.meetingType = 'instant',
     this.scheduledStartTime,
     this.status = MeetingStatus.initial,
     this.message = '',
     this.joinResult,
     this.isJoining = false,
+    this.privateSearchResults = const [],
+    this.isSearchingPrivate = false,
+    this.searchPrivateQuery = '',
   });
 
   bool get isInstant => meetingType == 'instant';
@@ -34,6 +42,7 @@ class MeetingState extends Equatable {
     List<MeetingEntity>? meetings,
     String? category,
     String? accessType,
+    String? password,
     String? meetingType,
     DateTime? scheduledStartTime,
     bool clearScheduledStartTime = false,
@@ -41,11 +50,15 @@ class MeetingState extends Equatable {
     String? message,
     MeetingJoinResult? joinResult,
     bool? isJoining,
+    List<MeetingEntity>? privateSearchResults,
+    bool? isSearchingPrivate,
+    String? searchPrivateQuery,
   }) {
     return MeetingState(
       meetings: meetings ?? this.meetings,
       category: category ?? this.category,
       accessType: accessType ?? this.accessType,
+      password: password ?? this.password,
       meetingType: meetingType ?? this.meetingType,
       scheduledStartTime: clearScheduledStartTime
           ? null
@@ -54,6 +67,9 @@ class MeetingState extends Equatable {
       message: message ?? this.message,
       joinResult: joinResult ?? this.joinResult,
       isJoining: isJoining ?? this.isJoining,
+      privateSearchResults: privateSearchResults ?? this.privateSearchResults,
+      isSearchingPrivate: isSearchingPrivate ?? this.isSearchingPrivate,
+      searchPrivateQuery: searchPrivateQuery ?? this.searchPrivateQuery,
     );
   }
 
@@ -62,12 +78,16 @@ class MeetingState extends Equatable {
         meetings,
         category,
         accessType,
+        password,
         meetingType,
         scheduledStartTime,
         status,
         message,
         joinResult,
         isJoining,
+        privateSearchResults,
+        isSearchingPrivate,
+        searchPrivateQuery,
       ];
 }
 

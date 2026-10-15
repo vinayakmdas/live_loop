@@ -6,6 +6,9 @@ class MeetingEntity extends Equatable {
   final String? description;
   final String? category;
   final String? accessType;
+  final String? joinCode;
+  final String? password;
+  final bool? isAvailable;
   final String meetingType;
   final DateTime? scheduledStartTime;
   final String? meetingLink;
@@ -21,6 +24,9 @@ class MeetingEntity extends Equatable {
     this.description,
     this.category,
     this.accessType,
+    this.joinCode,
+    this.password,
+    this.isAvailable,
     this.meetingType = 'instant',
     this.scheduledStartTime,
     this.meetingLink,
@@ -36,9 +42,26 @@ class MeetingEntity extends Equatable {
       meetingType.toLowerCase() == 'scheduled' ||
       meetingType.toLowerCase() == 'later';
 
-  /// True if the meeting is currently live (active instant meeting or scheduled meeting that has started)
+  bool get isPrivate => accessType?.toLowerCase() == 'private';
+  bool get isPublic =>
+      accessType?.toLowerCase() == 'public' ||
+      accessType?.toLowerCase() == 'anyone_with_link' ||
+      accessType == null ||
+      accessType!.isEmpty;
+
+  /// True if the meeting is currently live and available to join
+  bool get isAvailableNow {
+    if (isAvailable != null) return isAvailable!;
+    if (isInstant) return true;
+    if (scheduledStartTime == null) return true;
+    return DateTime.now().isAfter(scheduledStartTime!.toLocal());
+  }
+
+  /// True if the meeting is currently live (active instant meeting or scheduled meeting that has started).
+  /// Private rooms do NOT appear in the public live feed.
   bool get isCurrent {
     if (status?.toLowerCase() == 'archived') return false;
+    if (!isPublic) return false;
     if (isInstant) return true;
     if (isScheduled && scheduledStartTime != null) {
       final now = DateTime.now();
@@ -56,6 +79,9 @@ class MeetingEntity extends Equatable {
         description,
         category,
         accessType,
+        joinCode,
+        password,
+        isAvailable,
         meetingType,
         scheduledStartTime,
         meetingLink,

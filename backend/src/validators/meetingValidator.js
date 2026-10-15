@@ -16,14 +16,15 @@ const validateCreateMeeting = (req, res, next) => {
       ? req.body.category.trim().toLowerCase()
       : "";
   const accessType =
-    typeof req.body.accessType === "string"
-      ? req.body.accessType.trim()
+    typeof req.body.accessType === "string" && req.body.accessType.trim()
+      ? req.body.accessType.trim().toLowerCase()
+      : "public";
+  const rawPassword =
+    typeof req.body.password === "string"
+      ? req.body.password.trim()
+      : typeof req.body.joinCode === "string"
+      ? req.body.joinCode.trim()
       : "";
-  const rawType = req.body.meetingType || req.body.scheduleType;
-  const meetingType =
-    typeof rawType === "string"
-      ? rawType.trim().toLowerCase()
-      : "instant";
 
   let scheduledStartTime = null;
   const rawStartTime =
@@ -37,6 +38,14 @@ const validateCreateMeeting = (req, res, next) => {
     } else {
       scheduledStartTime = parsedDate;
     }
+  }
+
+  // If user scheduled for later with a date/time, meetingType is scheduled.
+  // If no future schedule was chosen, meeting starts instantly.
+  const rawType = req.body.meetingType || req.body.scheduleType;
+  let meetingType = scheduledStartTime ? "scheduled" : "instant";
+  if (rawType === "scheduled" && !scheduledStartTime) {
+    meetingType = "instant";
   }
 
   if (!name) {
@@ -57,20 +66,14 @@ const validateCreateMeeting = (req, res, next) => {
     );
   }
 
-  if (!accessType) {
-    errors.push("Access type is required");
-  } else if (!ACCESS_TYPES.includes(accessType)) {
+  if (!ACCESS_TYPES.includes(accessType)) {
     errors.push(
       `Access type must be one of: ${ACCESS_TYPES.join(", ")}`
     );
   }
 
-  if (meetingType && !MEETING_TYPES.includes(meetingType)) {
-    errors.push(`Meeting type must be one of: ${MEETING_TYPES.join(", ")}`);
-  }
-
-  if ((meetingType === "scheduled" || meetingType === "later") && !scheduledStartTime) {
-    errors.push("Scheduled start time is required for meetings scheduled for later");
+  if (rawPassword.length > 50) {
+    errors.push("Password cannot exceed 50 characters");
   }
 
   if (errors.length > 0) {
@@ -82,7 +85,9 @@ const validateCreateMeeting = (req, res, next) => {
   req.body.description = description;
   req.body.category = category;
   req.body.accessType = accessType;
-  req.body.meetingType = meetingType || "instant";
+  req.body.password = rawPassword || null;
+  req.body.joinCode = rawPassword || null;
+  req.body.meetingType = meetingType;
   req.body.scheduledStartTime = scheduledStartTime;
 
   next();

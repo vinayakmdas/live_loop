@@ -16,6 +16,8 @@ class MeetingRepositoryImpl implements MeetingRepository {
       description: meeting.description,
       category: meeting.category,
       accessType: meeting.accessType,
+      joinCode: meeting.joinCode,
+      password: meeting.password,
       meetingType: meeting.meetingType,
       scheduledStartTime: meeting.scheduledStartTime,
     );
@@ -28,15 +30,25 @@ class MeetingRepositoryImpl implements MeetingRepository {
   }
 
   @override
+  Future<List<MeetingEntity>> searchMeetings({
+    required String query,
+    String type = 'private',
+  }) {
+    return dataSource.searchMeetings(query: query, type: type);
+  }
+
+  @override
   Future<MeetingJoinResult> joinMeeting({
     String? meetingId,
     String? meetingLink,
     String? roomName,
+    String? passcode,
   }) {
     return dataSource.joinMeeting(
       meetingId: meetingId,
       meetingLink: meetingLink,
       roomName: roomName,
+      passcode: passcode,
     );
   }
 }

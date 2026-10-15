@@ -7,6 +7,9 @@ class MeetingModel extends MeetingEntity {
     super.description,
     super.category,
     super.accessType,
+    super.joinCode,
+    super.password,
+    super.isAvailable,
     super.meetingType = 'instant',
     super.scheduledStartTime,
     super.meetingLink,
@@ -23,7 +26,10 @@ class MeetingModel extends MeetingEntity {
       name: (json['name'] ?? '').toString(),
       description: (json['description'] ?? '').toString(),
       category: (json['category'] ?? '').toString(),
-      accessType: (json['accessType'] ?? '').toString(),
+      accessType: (json['accessType'] ?? 'public').toString(),
+      joinCode: json['joinCode']?.toString(),
+      password: (json['password'] ?? json['joinCode'])?.toString(),
+      isAvailable: json['isAvailable'] is bool ? json['isAvailable'] as bool : null,
       meetingType:
           (json['meetingType'] ?? json['scheduleType'] ?? 'instant').toString(),
       scheduledStartTime: (json['scheduledStartTime'] ??
@@ -56,8 +62,10 @@ class MeetingModel extends MeetingEntity {
         'name': name,
         'description': description ?? '',
         'category': category?.toLowerCase() ?? '',
-        'accessType': accessType ?? 'invite_only',
+        'accessType': accessType ?? 'public',
         'meetingType': meetingType,
+        if (password != null) 'password': password,
+        if (joinCode != null) 'joinCode': joinCode,
         if (scheduledStartTime != null)
           'scheduledStartTime': scheduledStartTime!.toUtc().toIso8601String(),
       };

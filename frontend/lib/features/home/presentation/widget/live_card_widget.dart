@@ -9,8 +9,8 @@ class LiveNowCard extends StatelessWidget {
     this.startTime,
     this.remainingTime = '',
     this.memberCount = 1,
-    this.title = 'Good conversations happen here.',
-    this.subtitle = 'Weekly community meetup',
+    this.title = 'Meeting Room',
+    this.subtitle = 'Live Meeting',
     this.memberInitials = const [],
     this.isJoining = false,
   });

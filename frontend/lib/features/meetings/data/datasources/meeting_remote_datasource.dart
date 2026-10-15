@@ -7,10 +7,15 @@ import '../models/meeting_model.dart';
 abstract class MeetingRemoteDataSource {
   Future<MeetingModel> createMeeting(MeetingModel meeting);
   Future<List<MeetingModel>> getMeetings();
+  Future<List<MeetingModel>> searchMeetings({
+    required String query,
+    String type = 'private',
+  });
   Future<MeetingJoinResult> joinMeeting({
     String? meetingId,
     String? meetingLink,
     String? roomName,
+    String? passcode,
   });
 }
 
@@ -63,10 +68,35 @@ class MeetingRemoteDataSourceImpl implements MeetingRemoteDataSource {
   }
 
   @override
+  Future<List<MeetingModel>> searchMeetings({
+    required String query,
+    String type = 'private',
+  }) async {
+    final token = sessionLocalDataSource?.getToken();
+    final url = ApiConstants.searchMeetingsUrl(query, type: type);
+    final response = await apiService.get(
+      url,
+      token: token,
+    );
+
+    final dynamic meetingsList = response['data'] != null && response['data']['meetings'] != null
+        ? response['data']['meetings']
+        : response['meetings'] ?? response['data'];
+
+    if (meetingsList is List) {
+      return meetingsList
+          .map((item) => MeetingModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
+
+  @override
   Future<MeetingJoinResult> joinMeeting({
     String? meetingId,
     String? meetingLink,
     String? roomName,
+    String? passcode,
   }) async {
     // 1. Local session token is strictly for authenticating the HTTP API request
     final authSessionToken = sessionLocalDataSource?.getToken();
@@ -80,6 +110,10 @@ class MeetingRemoteDataSourceImpl implements MeetingRemoteDataSource {
         'meetingLink': meetingLink,
       if (roomName != null && roomName.isNotEmpty)
         'roomName': roomName,
+      if (passcode != null && passcode.isNotEmpty) ...{
+        'passcode': passcode.trim(),
+        'password': passcode.trim(),
+      },
     };
 
     final response = await apiService.post(

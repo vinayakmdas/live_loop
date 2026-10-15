@@ -25,15 +25,39 @@ const findByLink = async (link) => {
     .populate("members.user", "name username email");
 };
 
+/** Find a meeting by unique 6-character join code */
+const findByJoinCode = async (code) => {
+  if (!code) return null;
+  return Meeting.findOne({
+    joinCode: code.toString().trim().toUpperCase(),
+    status: "active",
+  })
+    .populate("createdBy", "name username email")
+    .populate("members.user", "name username email");
+};
+
 /**
- * Find meetings where the user is the owner OR a member.
+ * Find public meetings visible to everyone:
+ * - Public rooms should be visible to everyone.
+ * - Private rooms should not appear in the public meeting list.
  * Supports cursor-based pagination via `page` / `limit` and optional category filter.
  */
-const findUserMeetings = async (userId, { page = 1, limit = 20, category } = {}) => {
-  const query = {
-    $or: [{ createdBy: userId }, { "members.user": userId }],
-    status: "active",
-  };
+const findUserMeetings = async (userId, { page = 1, limit = 50, category, scope } = {}) => {
+  let query;
+
+  if (scope === "my" || scope === "created") {
+    // Only return meetings created by the user or where user is member
+    query = {
+      $or: [{ createdBy: userId }, { "members.user": userId }],
+      status: "active",
+    };
+  } else {
+    // Public meeting list: strictly public rooms only! Private rooms do NOT appear here.
+    query = {
+      accessType: "public",
+      status: "active",
+    };
+  }
 
   if (category) {
     query.category = category.toLowerCase();
@@ -51,6 +75,35 @@ const findUserMeetings = async (userId, { page = 1, limit = 20, category } = {})
   ]);
 
   return { meetings, total, page, limit };
+};
+
+/**
+ * Search meetings by name (e.g., search for a private room "Maths Class").
+ * Default searches private rooms.
+ */
+const searchMeetings = async ({ query = "", type = "private", userId = null, limit = 30 } = {}) => {
+  const filter = {
+    status: "active",
+  };
+
+  if (type === "private") {
+    filter.accessType = "private";
+  } else if (type === "public") {
+    filter.accessType = "public";
+  }
+
+  const cleanQuery = typeof query === "string" ? query.trim() : "";
+  if (cleanQuery) {
+    filter.name = { $regex: cleanQuery, $options: "i" };
+  } else if (type === "private" && userId) {
+    // If no query string given for private rooms, return user's created private rooms
+    filter.createdBy = userId;
+  }
+
+  return Meeting.find(filter)
+    .populate("createdBy", "name username email")
+    .sort({ createdAt: -1 })
+    .limit(limit);
 };
 
 /** Update allowed fields on a meeting */
@@ -92,7 +145,9 @@ module.exports = {
   createMeeting,
   findById,
   findByLink,
+  findByJoinCode,
   findUserMeetings,
+  searchMeetings,
   updateMeeting,
   addMember,
   removeMember,

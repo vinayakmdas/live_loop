@@ -43,11 +43,28 @@ class MeetingScheduleChanged extends MeetingEvent {
   List<Object?> get props => [scheduledStartTime];
 }
 
+class MeetingPasswordChanged extends MeetingEvent {
+  final String password;
+  const MeetingPasswordChanged(this.password);
+
+  @override
+  List<Object?> get props => [password];
+}
+
+class SearchPrivateMeetingsEvent extends MeetingEvent {
+  final String query;
+  const SearchPrivateMeetingsEvent(this.query);
+
+  @override
+  List<Object?> get props => [query];
+}
+
 class MeetingSubmitted extends MeetingEvent {
   final String name;
   final String description;
   final String category;
   final String accessType;
+  final String? password;
   final String meetingType;
   final DateTime? scheduledStartTime;
 
@@ -55,7 +72,8 @@ class MeetingSubmitted extends MeetingEvent {
     required this.name,
     required this.description,
     required this.category,
-    required this.accessType,
+    this.accessType = 'public',
+    this.password,
     this.meetingType = 'instant',
     this.scheduledStartTime,
   });
@@ -66,6 +84,7 @@ class MeetingSubmitted extends MeetingEvent {
         description,
         category,
         accessType,
+        password,
         meetingType,
         scheduledStartTime,
       ];
@@ -79,14 +98,16 @@ class JoinMeetingRequested extends MeetingEvent {
   final String? meetingId;
   final String? meetingLink;
   final String? roomName;
+  final String? passcode;
 
   const JoinMeetingRequested({
     this.meetingId,
     this.meetingLink,
     this.roomName,
+    this.passcode,
   });
 
   @override
-  List<Object?> get props => [meetingId, meetingLink, roomName];
+  List<Object?> get props => [meetingId, meetingLink, roomName, passcode];
 }
 
