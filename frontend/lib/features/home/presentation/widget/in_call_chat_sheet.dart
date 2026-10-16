@@ -9,6 +9,7 @@ class InCallChatSheet extends StatefulWidget {
   final String currentUserId;
   final String currentUserName;
   final String? typingUserName;
+  final bool isConnected;
   final ValueChanged<String> onSendMessage;
   final ValueChanged<bool>? onTypingChanged;
   final VoidCallback onClose;
@@ -19,6 +20,7 @@ class InCallChatSheet extends StatefulWidget {
     required this.currentUserId,
     required this.currentUserName,
     this.typingUserName,
+    this.isConnected = true,
     required this.onSendMessage,
     this.onTypingChanged,
     required this.onClose,
@@ -33,10 +35,12 @@ class _InCallChatSheetState extends State<InCallChatSheet> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
   bool _canSend = false;
+  int _prevMessageCount = 0;
 
   @override
   void initState() {
     super.initState();
+    _prevMessageCount = widget.messages.length;
     _textController.addListener(_onTextChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(animated: false));
   }
@@ -44,7 +48,8 @@ class _InCallChatSheetState extends State<InCallChatSheet> {
   @override
   void didUpdateWidget(covariant InCallChatSheet oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.messages.length != oldWidget.messages.length) {
+    if (widget.messages.length != _prevMessageCount) {
+      _prevMessageCount = widget.messages.length;
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(animated: true));
     }
   }
@@ -116,13 +121,15 @@ class _InCallChatSheetState extends State<InCallChatSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final screenHeight = MediaQuery.of(context).size.height;
+    final targetHeight = bottomInset > 0 ? screenHeight * 0.85 : screenHeight * 0.72;
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          height: screenHeight * 0.72,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: targetHeight,
           decoration: BoxDecoration(
             color: const Color(0xFF12161E).withValues(alpha: 0.95),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -153,7 +160,7 @@ class _InCallChatSheetState extends State<InCallChatSheet> {
                 ),
               ),
 
-              // ── Header (Title & Close Button) ───────────────────────────
+              // ── Header (Title & Close Button & Live Status) ────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                 child: Row(
@@ -171,15 +178,30 @@ class _InCallChatSheetState extends State<InCallChatSheet> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'In-call messages',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.2,
-                        ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Text(
+                            'In-call messages',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: widget.isConnected
+                                  ? const Color(0xFF10B981) // Green online
+                                  : const Color(0xFFF59E0B), // Amber connecting
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     IconButton(
@@ -191,6 +213,41 @@ class _InCallChatSheetState extends State<InCallChatSheet> {
                   ],
                 ),
               ),
+
+              // ── Offline / Connecting Notice ─────────────────────────────
+              if (!widget.isConnected)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: Color(0xFFF59E0B),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Connecting to chat server...',
+                        style: TextStyle(
+                          color: Color(0xFFFCD34D),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               // ── Google Meet Call Notice Banner ──────────────────────────
               Container(

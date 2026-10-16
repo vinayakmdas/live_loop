@@ -26,7 +26,16 @@ const initSocket = (server) => {
     console.log(`[Socket.IO] Client connected: ${socket.id}`);
 
     // ── Handle joining a meeting room chat ──────────────────────────────────
-    socket.on("join_room", ({ roomId, userId, userName }) => {
+    socket.on("join_room", (rawPayload) => {
+      let payload = rawPayload;
+      if (typeof rawPayload === "string") {
+        try {
+          payload = JSON.parse(rawPayload);
+        } catch (_) {
+          payload = {};
+        }
+      }
+      const { roomId, userId, userName } = payload || {};
       if (!roomId) {
         return socket.emit("error", { message: "roomId is required to join chat." });
       }
@@ -59,8 +68,17 @@ const initSocket = (server) => {
     });
 
     // ── Handle sending a message ───────────────────────────────────────────
-    socket.on("send_message", ({ roomId, text, senderId, senderName, timestamp }) => {
-      const targetRoom = String(roomId || socket.data.roomId || "").trim();
+    socket.on("send_message", (rawPayload) => {
+      let payload = rawPayload;
+      if (typeof rawPayload === "string") {
+        try {
+          payload = JSON.parse(rawPayload);
+        } catch (_) {
+          payload = {};
+        }
+      }
+      const { id, roomId, text, senderId, senderName, timestamp } = payload || {};
+      const targetRoom = String(roomId || (socket.data && socket.data.roomId) || "").trim();
       const cleanText = typeof text === "string" ? text.trim() : "";
 
       if (!targetRoom) {
@@ -70,11 +88,14 @@ const initSocket = (server) => {
         return; // Ignore empty messages
       }
 
+      // Ensure socket is joined to target room in case join_room packet was missed
+      socket.join(targetRoom);
+
       const message = {
-        id: `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        id: id ? String(id).trim() : `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         roomId: targetRoom,
-        senderId: String(senderId || socket.data.userId || "anonymous").trim(),
-        senderName: String(senderName || socket.data.userName || "Participant").trim(),
+        senderId: String(senderId || (socket.data && socket.data.userId) || "anonymous").trim(),
+        senderName: String(senderName || (socket.data && socket.data.userName) || "Participant").trim(),
         text: cleanText,
         timestamp: timestamp || new Date().toISOString(),
         isSystem: false,
@@ -99,13 +120,22 @@ const initSocket = (server) => {
     });
 
     // ── Handle typing indicator ────────────────────────────────────────────
-    socket.on("typing", ({ roomId, isTyping }) => {
-      const targetRoom = String(roomId || socket.data.roomId || "").trim();
+    socket.on("typing", (rawPayload) => {
+      let payload = rawPayload;
+      if (typeof rawPayload === "string") {
+        try {
+          payload = JSON.parse(rawPayload);
+        } catch (_) {
+          payload = {};
+        }
+      }
+      const { roomId, isTyping } = payload || {};
+      const targetRoom = String(roomId || (socket.data && socket.data.roomId) || "").trim();
       if (!targetRoom) return;
 
       socket.to(targetRoom).emit("user_typing", {
-        userId: socket.data.userId,
-        userName: socket.data.userName || "Someone",
+        userId: socket.data && socket.data.userId,
+        userName: (socket.data && socket.data.userName) || "Someone",
         isTyping: Boolean(isTyping),
       });
     });

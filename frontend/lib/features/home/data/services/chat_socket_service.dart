@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as socket_io;
 import 'package:frontend/core/constants/api_constant.dart';
@@ -16,15 +17,22 @@ class ChatSocketService {
   String? _currentUserId;
   String? _currentUserName;
 
+  final List<Map<String, dynamic>> _pendingMessageQueue = [];
+
   OnMessageReceived? onMessageReceived;
   OnRoomHistory? onRoomHistory;
   OnUserTyping? onUserTyping;
   OnConnectionStateChanged? onConnectionStateChanged;
 
-  bool get isConnected => _isConnected;
+  bool get isConnected => _isConnected || (_socket?.connected ?? false);
 
   void init() {
-    if (_socket != null) return;
+    if (_socket != null) {
+      if (!isConnected) {
+        _socket!.connect();
+      }
+      return;
+    }
 
     final url = ApiConstants.baseUrl;
     debugPrint('[ChatSocket] Initializing Socket.IO with $url');
@@ -32,11 +40,11 @@ class ChatSocketService {
     _socket = socket_io.io(
       url,
       socket_io.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
+          .setTransports(['websocket', 'polling'])
           .enableReconnection()
-          .setReconnectionAttempts(10)
-          .setReconnectionDelay(1500)
+          .setReconnectionAttempts(20)
+          .setReconnectionDelay(1000)
+          .setReconnectionDelayMax(5000)
           .build(),
     );
 
@@ -46,9 +54,12 @@ class ChatSocketService {
       onConnectionStateChanged?.call(true);
 
       // If room parameters were already registered, rejoin automatically on connect/reconnect
-      if (_currentRoomId != null) {
+      if (_currentRoomId != null && _currentRoomId!.isNotEmpty) {
         _emitJoinRoom();
       }
+
+      // Dispatch any messages that were queued while connecting or offline
+      _flushPendingMessages();
     });
 
     _socket!.onDisconnect((reason) {
@@ -69,57 +80,98 @@ class ChatSocketService {
 
     // Listen for room history sent by server upon joining
     _socket!.on('room_history', (data) {
-      if (data is List) {
-        final messages = data
-            .map((item) {
-              if (item is Map<String, dynamic>) {
-                return ChatMessage.fromJson(item);
-              } else if (item is Map) {
-                return ChatMessage.fromJson(Map<String, dynamic>.from(item));
-              }
-              return null;
-            })
-            .whereType<ChatMessage>()
-            .toList();
+      try {
+        dynamic parsedData = data;
+        if (data is String) {
+          parsedData = jsonDecode(data);
+        }
 
-        debugPrint('[ChatSocket] Received ${messages.length} historical messages');
-        onRoomHistory?.call(messages);
+        if (parsedData is List) {
+          final messages = parsedData
+              .map((item) {
+                if (item is Map<String, dynamic>) {
+                  return ChatMessage.fromJson(item);
+                } else if (item is Map) {
+                  return ChatMessage.fromJson(Map<String, dynamic>.from(item));
+                }
+                return null;
+              })
+              .whereType<ChatMessage>()
+              .toList();
+
+          debugPrint('[ChatSocket] Received ${messages.length} historical messages');
+          onRoomHistory?.call(messages);
+        }
+      } catch (e, stack) {
+        debugPrint('[ChatSocket] Error parsing room_history: $e\n$stack');
       }
     });
 
     // Listen for incoming messages in real time
     _socket!.on('receive_message', (data) {
-      if (data is Map) {
-        final message = ChatMessage.fromJson(Map<String, dynamic>.from(data));
-        debugPrint('[ChatSocket] New message from ${message.senderName}: ${message.text}');
-        onMessageReceived?.call(message);
+      try {
+        Map<String, dynamic>? messageMap;
+        if (data is Map) {
+          messageMap = Map<String, dynamic>.from(data);
+        } else if (data is String) {
+          final decoded = jsonDecode(data);
+          if (decoded is Map) {
+            messageMap = Map<String, dynamic>.from(decoded);
+          }
+        }
+
+        if (messageMap != null) {
+          final message = ChatMessage.fromJson(messageMap);
+          debugPrint('[ChatSocket] New message from ${message.senderName}: ${message.text}');
+          onMessageReceived?.call(message);
+        }
+      } catch (e, stack) {
+        debugPrint('[ChatSocket] Error parsing receive_message: $e\n$stack');
       }
     });
 
     // Listen for typing indicator
     _socket!.on('user_typing', (data) {
-      if (data is Map) {
-        final userName = data['userName']?.toString() ?? 'Someone';
-        final isTyping = data['isTyping'] == true;
-        onUserTyping?.call(userName, isTyping);
-      }
+      try {
+        Map? map;
+        if (data is Map) {
+          map = data;
+        } else if (data is String) {
+          final decoded = jsonDecode(data);
+          if (decoded is Map) map = decoded;
+        }
+        if (map != null) {
+          final userName = map['userName']?.toString() ?? 'Someone';
+          final isTyping = map['isTyping'] == true;
+          onUserTyping?.call(userName, isTyping);
+        }
+      } catch (_) {}
     });
 
     // Listen for user join events (optional system notifications)
     _socket!.on('user_joined', (data) {
-      if (data is Map) {
-        final userName = data['userName']?.toString() ?? 'Participant';
-        final systemMsg = ChatMessage(
-          id: 'sys_${DateTime.now().millisecondsSinceEpoch}',
-          roomId: _currentRoomId ?? '',
-          senderId: 'system',
-          senderName: 'System',
-          text: '$userName joined the call',
-          timestamp: DateTime.now(),
-          isSystem: true,
-        );
-        onMessageReceived?.call(systemMsg);
-      }
+      try {
+        Map? map;
+        if (data is Map) {
+          map = data;
+        } else if (data is String) {
+          final decoded = jsonDecode(data);
+          if (decoded is Map) map = decoded;
+        }
+        if (map != null) {
+          final userName = map['userName']?.toString() ?? 'Participant';
+          final systemMsg = ChatMessage(
+            id: 'sys_${DateTime.now().millisecondsSinceEpoch}',
+            roomId: _currentRoomId ?? '',
+            senderId: 'system',
+            senderName: 'System',
+            text: '$userName joined the call',
+            timestamp: DateTime.now(),
+            isSystem: true,
+          );
+          onMessageReceived?.call(systemMsg);
+        }
+      } catch (_) {}
     });
 
     _socket!.connect();
@@ -130,13 +182,13 @@ class ChatSocketService {
     required String userId,
     required String userName,
   }) {
-    _currentRoomId = roomId;
-    _currentUserId = userId;
-    _currentUserName = userName;
+    _currentRoomId = roomId.trim();
+    _currentUserId = userId.trim();
+    _currentUserName = userName.trim();
 
     if (_socket == null) {
       init();
-    } else if (_isConnected) {
+    } else if (isConnected) {
       _emitJoinRoom();
     } else {
       _socket?.connect();
@@ -156,37 +208,70 @@ class ChatSocketService {
   }
 
   void sendMessage({
+    String? id,
     required String roomId,
     required String text,
     required String senderId,
     required String senderName,
   }) {
     final cleanText = text.trim();
-    if (cleanText.isEmpty || _socket == null) return;
+    final cleanRoomId = roomId.trim();
+    if (cleanText.isEmpty || cleanRoomId.isEmpty) return;
+
+    final msgId = (id != null && id.isNotEmpty)
+        ? id
+        : 'msg_${DateTime.now().millisecondsSinceEpoch}_${senderId}';
 
     final payload = {
-      'roomId': roomId,
+      'id': msgId,
+      'roomId': cleanRoomId,
       'text': cleanText,
       'senderId': senderId,
       'senderName': senderName,
       'timestamp': DateTime.now().toIso8601String(),
     };
 
-    debugPrint('[ChatSocket] Emitting send_message to $roomId: $cleanText');
-    _socket!.emit('send_message', payload);
+    if (_socket != null && isConnected) {
+      debugPrint('[ChatSocket] Emitting send_message to $cleanRoomId: $cleanText');
+      _socket!.emit('send_message', payload);
+    } else {
+      debugPrint('[ChatSocket] Socket not yet connected. Queueing message for $cleanRoomId: $cleanText');
+      _pendingMessageQueue.add(payload);
+      _socket?.connect();
+    }
+  }
+
+  void _flushPendingMessages() {
+    if (_pendingMessageQueue.isEmpty || _socket == null) return;
+    debugPrint('[ChatSocket] Flushing ${_pendingMessageQueue.length} pending messages');
+    final queue = List<Map<String, dynamic>>.from(_pendingMessageQueue);
+    _pendingMessageQueue.clear();
+    for (final payload in queue) {
+      _socket!.emit('send_message', payload);
+    }
   }
 
   void sendTyping({required String roomId, required bool isTyping}) {
-    if (_socket == null || !_isConnected) return;
+    final cleanRoomId = roomId.trim();
+    if (_socket == null || !isConnected || cleanRoomId.isEmpty) return;
     _socket!.emit('typing', {
-      'roomId': roomId,
+      'roomId': cleanRoomId,
       'isTyping': isTyping,
     });
   }
 
   void leaveRoom(String roomId) {
     if (_socket == null) return;
-    _socket!.emit('leave_room', {'roomId': roomId});
+    final cleanRoomId = roomId.trim();
+    _socket!.emit('leave_room', {'roomId': cleanRoomId});
+  }
+
+  void reconnect() {
+    if (_socket == null) {
+      init();
+    } else {
+      _socket!.connect();
+    }
   }
 
   void dispose() {
@@ -194,6 +279,7 @@ class ChatSocketService {
     if (_currentRoomId != null) {
       leaveRoom(_currentRoomId!);
     }
+    _pendingMessageQueue.clear();
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;

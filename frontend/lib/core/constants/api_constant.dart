@@ -2,13 +2,19 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 class ApiConstants {
+  static String? customBaseUrl;
+
   static String get baseUrl {
+    if (customBaseUrl != null && customBaseUrl!.isNotEmpty) {
+      return customBaseUrl!;
+    }
+
     if (kIsWeb) {
       return "http://localhost:5001";
     }
 
     if (Platform.isAndroid) {
-      return "http://192.168.1.19:5001";
+      return "http://192.168.1.100:5001";
     }
 
     return "http://localhost:5001";
