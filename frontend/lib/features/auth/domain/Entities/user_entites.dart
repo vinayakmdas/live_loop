@@ -3,6 +3,7 @@ class UserEntity {
   final String name;
   final String username;
   final String email;
+  final String? profileImage;
   final String? token;
   final String? refreshToken;
 
@@ -11,6 +12,7 @@ class UserEntity {
     required this.name,
     required this.username,
     required this.email,
+    this.profileImage,
     this.token,
     this.refreshToken,
   });

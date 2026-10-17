@@ -24,6 +24,9 @@ abstract class HomeState {
   /// Safe username getter
   String get username => user?.username ?? '';
 
+  /// Safe profile image getter
+  String? get profileImage => user?.profileImage;
+
   /// Authentication check
   bool get isLoggedIn => user != null;
 }

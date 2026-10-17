@@ -1,13 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:frontend/core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
 import 'package:frontend/features/home/domain/entities/chat_message.dart';
 
 class InCallChatSheet extends StatefulWidget {
   final List<ChatMessage> messages;
   final String currentUserId;
   final String currentUserName;
+  final String? currentUserProfileImage;
   final String? typingUserName;
   final bool isConnected;
   final ValueChanged<String> onSendMessage;
@@ -19,6 +20,7 @@ class InCallChatSheet extends StatefulWidget {
     required this.messages,
     required this.currentUserId,
     required this.currentUserName,
+    this.currentUserProfileImage,
     this.typingUserName,
     this.isConnected = true,
     required this.onSendMessage,
@@ -467,17 +469,27 @@ class _InCallChatSheetState extends State<InCallChatSheet> {
         children: [
           // Left avatar for others
           if (!isMe) ...[
-            CircleAvatar(
-              radius: 15,
-              backgroundColor: avatarColor,
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+            Builder(
+              builder: (context) {
+                final hasImage = msg.senderProfileImage != null &&
+                    msg.senderProfileImage!.isNotEmpty;
+                return CircleAvatar(
+                  radius: 15,
+                  backgroundColor: avatarColor,
+                  backgroundImage:
+                      hasImage ? NetworkImage(msg.senderProfileImage!) : null,
+                  child: hasImage
+                      ? null
+                      : Text(
+                          initial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                );
+              },
             ),
             const SizedBox(width: 8),
           ],
@@ -555,19 +567,29 @@ class _InCallChatSheetState extends State<InCallChatSheet> {
           // Right avatar for self
           if (isMe) ...[
             const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 15,
-              backgroundColor: AppColors.primary,
-              child: Text(
-                widget.currentUserName.isNotEmpty
-                    ? widget.currentUserName[0].toUpperCase()
-                    : 'U',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+            Builder(
+              builder: (context) {
+                final myImg = msg.senderProfileImage ?? widget.currentUserProfileImage;
+                final hasMyImg = myImg != null && myImg.isNotEmpty;
+                return CircleAvatar(
+                  radius: 15,
+                  backgroundColor: AppColors.primary,
+                  backgroundImage:
+                      hasMyImg ? NetworkImage(myImg) : null,
+                  child: hasMyImg
+                      ? null
+                      : Text(
+                          widget.currentUserName.isNotEmpty
+                              ? widget.currentUserName[0].toUpperCase()
+                              : 'U',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                );
+              },
             ),
           ],
         ],

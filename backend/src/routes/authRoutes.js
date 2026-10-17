@@ -6,16 +6,20 @@ const {
   refresh,
   logout,
   forgotPassword,
+  showResetPasswordPage,
   resetPassword,
+  googleAuth,
 } = require("../controllers/authController");
 
 const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/google", googleAuth);
 router.post("/refresh", refresh);
 router.post("/logout", logout);
 router.post("/forgot-password", forgotPassword);
+router.get("/reset-password/:token", showResetPasswordPage);
 router.post("/reset-password", resetPassword);
 
 // Temporary test route — proves middleware works

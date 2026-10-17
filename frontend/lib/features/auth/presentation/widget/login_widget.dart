@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:frontend/core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_event.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_state.dart';
+import 'package:frontend/features/auth/presentation/pages/forgot_password_screen.dart';
 import 'package:frontend/features/auth/presentation/pages/signup_screen.dart';
 
 class LoginWidget {
@@ -78,6 +79,36 @@ class LoginWidget {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  static Widget forgotPasswordButton(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ForgotPasswordScreen(),
+            ),
+          );
+        },
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: const Text(
+          'Forgot Password?',
+          style: TextStyle(
+            color: Color(0xFF818CF8),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+          ),
         ),
       ),
     );
@@ -167,42 +198,60 @@ class LoginWidget {
     );
   }
 
-  static Widget googleSignInButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 55,
-      child: ElevatedButton(
-        onPressed: () {
-          // Google sign-in
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.surface,
-          foregroundColor: AppColors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 36,
-              height: 36,
-              child: Image.asset('asset/google.png', fit: BoxFit.contain),
-            ),
-            const SizedBox(width: 6),
-            const Text(
-              'Sign in with Google',
-              style: TextStyle(
-                color: AppColors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+  static Widget googleSignInButton(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final isLoading = state is AuthLoading;
+
+        return SizedBox(
+          width: double.infinity,
+          height: 55,
+          child: ElevatedButton(
+            onPressed: isLoading
+                ? null
+                : () {
+                    context.read<AuthBloc>().add(GoogleSignInRequested());
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.surface,
+              disabledBackgroundColor: AppColors.surface.withValues(alpha: 0.6),
+              foregroundColor: AppColors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-          ],
-        ),
-      ),
+            child: isLoading
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(
+                      color: AppColors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: Image.asset('asset/google.png', fit: BoxFit.contain),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Sign in with Google',
+                        style: TextStyle(
+                          color: AppColors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        );
+      },
     );
   }
 

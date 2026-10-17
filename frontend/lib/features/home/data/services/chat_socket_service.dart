@@ -16,6 +16,7 @@ class ChatSocketService {
   String? _currentRoomId;
   String? _currentUserId;
   String? _currentUserName;
+  String? _currentProfileImage;
 
   final List<Map<String, dynamic>> _pendingMessageQueue = [];
 
@@ -181,10 +182,12 @@ class ChatSocketService {
     required String roomId,
     required String userId,
     required String userName,
+    String? profileImage,
   }) {
     _currentRoomId = roomId.trim();
     _currentUserId = userId.trim();
     _currentUserName = userName.trim();
+    _currentProfileImage = profileImage;
 
     if (_socket == null) {
       init();
@@ -204,6 +207,7 @@ class ChatSocketService {
       'roomId': _currentRoomId,
       'userId': _currentUserId,
       'userName': _currentUserName,
+      'profileImage': _currentProfileImage,
     });
   }
 
@@ -213,6 +217,7 @@ class ChatSocketService {
     required String text,
     required String senderId,
     required String senderName,
+    String? senderProfileImage,
   }) {
     final cleanText = text.trim();
     final cleanRoomId = roomId.trim();
@@ -220,7 +225,7 @@ class ChatSocketService {
 
     final msgId = (id != null && id.isNotEmpty)
         ? id
-        : 'msg_${DateTime.now().millisecondsSinceEpoch}_${senderId}';
+        : 'msg_${DateTime.now().millisecondsSinceEpoch}_$senderId';
 
     final payload = {
       'id': msgId,
@@ -228,6 +233,7 @@ class ChatSocketService {
       'text': cleanText,
       'senderId': senderId,
       'senderName': senderName,
+      'senderProfileImage': senderProfileImage ?? _currentProfileImage,
       'timestamp': DateTime.now().toIso8601String(),
     };
 

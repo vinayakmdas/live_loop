@@ -6,6 +6,7 @@ class SessionLocalDataSource {
   static const String _keyName = 'session_name';
   static const String _keyUsername = 'session_username';
   static const String _keyEmail = 'session_email';
+  static const String _keyProfileImage = 'session_profile_image';
   static const String _keyToken = 'session_access_token';
   static const String _keyRefreshToken = 'session_refresh_token';
 
@@ -19,6 +20,11 @@ class SessionLocalDataSource {
     await _prefs.setString(_keyName, user.name);
     await _prefs.setString(_keyUsername, user.username);
     await _prefs.setString(_keyEmail, user.email);
+    if (user.profileImage != null && user.profileImage!.isNotEmpty) {
+      await _prefs.setString(_keyProfileImage, user.profileImage!);
+    } else {
+      await _prefs.remove(_keyProfileImage);
+    }
     if (user.token != null && user.token!.isNotEmpty) {
       await _prefs.setString(_keyToken, user.token!);
     }
@@ -70,6 +76,7 @@ class SessionLocalDataSource {
       name: _prefs.getString(_keyName) ?? '',
       username: _prefs.getString(_keyUsername) ?? '',
       email: _prefs.getString(_keyEmail) ?? '',
+      profileImage: _prefs.getString(_keyProfileImage),
       token: token,
       refreshToken: refreshToken,
     );
@@ -81,6 +88,7 @@ class SessionLocalDataSource {
     await _prefs.remove(_keyName);
     await _prefs.remove(_keyUsername);
     await _prefs.remove(_keyEmail);
+    await _prefs.remove(_keyProfileImage);
     await _prefs.remove(_keyToken);
     await _prefs.remove(_keyRefreshToken);
   }

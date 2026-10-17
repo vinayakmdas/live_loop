@@ -35,7 +35,7 @@ const initSocket = (server) => {
           payload = {};
         }
       }
-      const { roomId, userId, userName } = payload || {};
+      const { roomId, userId, userName, profileImage, senderProfileImage } = payload || {};
       if (!roomId) {
         return socket.emit("error", { message: "roomId is required to join chat." });
       }
@@ -43,12 +43,14 @@ const initSocket = (server) => {
       const cleanRoomId = String(roomId).trim();
       const cleanUserId = String(userId || "anonymous").trim();
       const cleanUserName = String(userName || "Participant").trim();
+      const cleanProfileImage = profileImage || senderProfileImage || null;
 
       socket.join(cleanRoomId);
       socket.data = {
         roomId: cleanRoomId,
         userId: cleanUserId,
         userName: cleanUserName,
+        profileImage: cleanProfileImage,
       };
 
       console.log(
@@ -96,6 +98,7 @@ const initSocket = (server) => {
         roomId: targetRoom,
         senderId: String(senderId || (socket.data && socket.data.userId) || "anonymous").trim(),
         senderName: String(senderName || (socket.data && socket.data.userName) || "Participant").trim(),
+        senderProfileImage: payload?.senderProfileImage || (socket.data && socket.data.profileImage) || null,
         text: cleanText,
         timestamp: timestamp || new Date().toISOString(),
         isSystem: false,

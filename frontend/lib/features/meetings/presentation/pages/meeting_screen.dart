@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'package:frontend/core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
 import 'package:frontend/features/auth/domain/Entities/user_entites.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_state.dart';
@@ -151,6 +150,7 @@ class _MeetingScreenState extends State<MeetingScreen> {
             token: result.token,
             roomName: result.roomName,
             userName: currentUser?.name,
+            userProfileImage: currentUser?.profileImage,
           ),
         ),
       );
@@ -206,6 +206,7 @@ class _MeetingScreenState extends State<MeetingScreen> {
           backgroundColor: AppColors.background,
           appBar: HomescrenWidget.appBar(
             userInitial: homeState.userInitial,
+            profileImageUrl: homeState.profileImage,
           ),
           body: SafeArea(
             child: Padding(

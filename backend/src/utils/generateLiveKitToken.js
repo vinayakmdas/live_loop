@@ -64,6 +64,7 @@ const generateLiveKitToken = async ({
   roomName,
   participantIdentity,
   participantName,
+  metadata,
   ttl = "6h",
 }) => {
   if (!roomName || !roomName.trim()) {
@@ -88,11 +89,13 @@ const generateLiveKitToken = async ({
   const identity = String(participantIdentity).trim();
   const name = String(participantName || identity).trim();
   const cleanRoomName = String(roomName).trim();
+  const cleanMetadata = typeof metadata === "string" ? metadata : (metadata ? JSON.stringify(metadata) : undefined);
 
-  // Create token with participant identity, display name, and TTL
+  // Create token with participant identity, display name, metadata, and TTL
   const at = new AccessToken(config.apiKey, config.apiSecret, {
     identity,
     name,
+    metadata: cleanMetadata,
     ttl,
   });
 

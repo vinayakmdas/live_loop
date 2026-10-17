@@ -59,17 +59,40 @@ class MeetingEntity extends Equatable {
 
   /// True if the meeting is currently live (active instant meeting or scheduled meeting that has started).
   /// Private rooms do NOT appear in the public live feed.
+  /// Does not display completed, cancelled, or archived meetings.
   bool get isCurrent {
-    if (status?.toLowerCase() == 'archived') return false;
     if (!isPublic) return false;
-    if (isInstant) return true;
-    if (isScheduled && scheduledStartTime != null) {
-      final now = DateTime.now();
-      final localStart = scheduledStartTime!.toLocal();
-      final diff = now.difference(localStart);
-      return diff.inHours >= 0 && diff.inHours < 6;
+    final s = status?.toLowerCase();
+    if (s == 'archived' || s == 'completed' || s == 'cancelled') return false;
+
+    final now = DateTime.now();
+
+    // If scheduled for the future, it has NOT started yet -> definitely NOT current!
+    if (scheduledStartTime != null && now.isBefore(scheduledStartTime!.toLocal())) {
+      return false;
     }
-    return false;
+
+    if (isInstant && scheduledStartTime == null) return true;
+
+    if (scheduledStartTime != null) {
+      final localStart = scheduledStartTime!.toLocal();
+      if (now.isBefore(localStart)) return false;
+      final diff = now.difference(localStart);
+      return !diff.isNegative && diff.inHours < 6;
+    }
+
+    return isInstant;
+  }
+
+  /// True if the meeting is a scheduled public meeting that has not started yet.
+  /// Shows only scheduled public meetings that have not started yet.
+  /// Does not display current, completed, cancelled, or private meetings in this section.
+  bool get isUpcoming {
+    if (!isPublic) return false;
+    final s = status?.toLowerCase();
+    if (s == 'archived' || s == 'completed' || s == 'cancelled') return false;
+    if (scheduledStartTime == null) return false;
+    return DateTime.now().isBefore(scheduledStartTime!.toLocal());
   }
 
   @override

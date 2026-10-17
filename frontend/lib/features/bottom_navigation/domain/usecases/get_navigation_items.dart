@@ -9,8 +9,7 @@ class GetNavigationItems {
     return const [
       NavigationItem(index: 0, label: 'Home'),
       NavigationItem(index: 1, label: 'Meetings'),
-      NavigationItem(index: 2, label: 'Notifications'),
-      NavigationItem(index: 3, label: 'Profile'),
+      NavigationItem(index: 2, label: 'Profile'),
     ];
   }
 }

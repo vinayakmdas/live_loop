@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'package:frontend/core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
 
 class LiveNowCard extends StatelessWidget {
   const LiveNowCard({

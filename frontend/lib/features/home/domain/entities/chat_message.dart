@@ -3,6 +3,7 @@ class ChatMessage {
   final String roomId;
   final String senderId;
   final String senderName;
+  final String? senderProfileImage;
   final String text;
   final DateTime timestamp;
   final bool isSystem;
@@ -12,6 +13,7 @@ class ChatMessage {
     required this.roomId,
     required this.senderId,
     required this.senderName,
+    this.senderProfileImage,
     required this.text,
     required this.timestamp,
     this.isSystem = false,
@@ -38,6 +40,7 @@ class ChatMessage {
       roomId: json['roomId']?.toString() ?? '',
       senderId: json['senderId']?.toString() ?? 'anonymous',
       senderName: json['senderName']?.toString() ?? 'Participant',
+      senderProfileImage: json['senderProfileImage']?.toString(),
       text: json['text']?.toString() ?? '',
       timestamp: parsedTime,
       isSystem: json['isSystem'] == true,
@@ -50,10 +53,16 @@ class ChatMessage {
       'roomId': roomId,
       'senderId': senderId,
       'senderName': senderName,
+      'senderProfileImage': senderProfileImage,
       'text': text,
       'timestamp': timestamp.toIso8601String(),
       'isSystem': isSystem,
     };
+  }
+
+  String get senderInitial {
+    final trimmed = senderName.trim();
+    return trimmed.isNotEmpty ? trimmed[0].toUpperCase() : 'U';
   }
 
   bool isFromUser(String? currentUserId, String? currentUserName) {

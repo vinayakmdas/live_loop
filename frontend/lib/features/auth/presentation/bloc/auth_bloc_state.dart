@@ -31,3 +31,37 @@ class AuthFailure extends AuthState {
 
   AuthFailure(this.message);
 }
+
+/// Emitted while sending the password reset email.
+class ForgotPasswordLoading extends AuthState {}
+
+/// Emitted when the password reset email request was accepted.
+class ForgotPasswordSuccess extends AuthState {
+  final String message;
+
+  ForgotPasswordSuccess(this.message);
+}
+
+/// Emitted when requesting the password reset email fails.
+class ForgotPasswordFailure extends AuthState {
+  final String error;
+
+  ForgotPasswordFailure(this.error);
+}
+
+/// Emitted while resetting the password.
+class ResetPasswordLoading extends AuthState {}
+
+/// Emitted when the password was successfully reset.
+class ResetPasswordSuccess extends AuthState {
+  final String message;
+
+  ResetPasswordSuccess(this.message);
+}
+
+/// Emitted when resetting the password fails.
+class ResetPasswordFailure extends AuthState {
+  final String error;
+
+  ResetPasswordFailure(this.error);
+}

@@ -6,6 +6,7 @@ class UserModel extends UserEntity {
     required super.name,
     required super.username,
     required super.email,
+    super.profileImage,
     super.token,
     super.refreshToken,
   });
@@ -20,6 +21,7 @@ class UserModel extends UserEntity {
       name: (json["name"] ?? "").toString(),
       username: (json["username"] ?? json["name"] ?? "").toString(),
       email: (json["email"] ?? "").toString(),
+      profileImage: (json["profileImage"] ?? json["photoUrl"] ?? json["picture"])?.toString(),
       token: token ?? (json["token"] ?? json["accessToken"])?.toString(),
       refreshToken: refreshToken ?? json["refreshToken"]?.toString(),
     );
@@ -31,6 +33,7 @@ class UserModel extends UserEntity {
       "name": name,
       "username": username,
       "email": email,
+      if (profileImage != null) "profileImage": profileImage,
       if (token != null) "token": token,
       if (refreshToken != null) "refreshToken": refreshToken,
     };

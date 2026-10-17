@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
+
 
 class MeetingFormField extends StatelessWidget {
   final String label;

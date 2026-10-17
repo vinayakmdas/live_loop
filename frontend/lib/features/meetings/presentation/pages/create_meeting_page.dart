@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-import '../../../../core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
 import '../bloc/meeting_bloc.dart';
 import '../bloc/meeting_event.dart';
 import '../bloc/meeting_state.dart';
@@ -644,7 +643,7 @@ class _CreateMeetingViewState extends State<_CreateMeetingView> {
                 _MeetingBottomNavigation(
                   onHome: () => Navigator.maybePop(context),
                   onMeetings: () {},
-                  onNotifications: () {},
+                  
                   onProfile: () {},
                 ),
               ],
@@ -705,13 +704,13 @@ class _SchedulePickerButton extends StatelessWidget {
 class _MeetingBottomNavigation extends StatelessWidget {
   final VoidCallback onHome;
   final VoidCallback onMeetings;
-  final VoidCallback onNotifications;
+  
   final VoidCallback onProfile;
 
   const _MeetingBottomNavigation({
     required this.onHome,
     required this.onMeetings,
-    required this.onNotifications,
+   
     required this.onProfile,
   });
 
@@ -729,7 +728,6 @@ class _MeetingBottomNavigation extends StatelessWidget {
         children: [
           _NavItem(label: 'Home', selected: false, onTap: onHome),
           _NavItem(label: 'Meetings', selected: true, onTap: onMeetings),
-          _NavItem(label: 'Notifications', selected: false, onTap: onNotifications),
           _NavItem(label: 'Profile', selected: false, onTap: onProfile),
         ],
       ),

@@ -1,5 +1,7 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:frontend/core/constants/api_service.dart';
 import 'package:frontend/core/storage/tocken_storage.dart';
@@ -7,8 +9,11 @@ import 'package:frontend/features/auth/data/Data%20Sources/auth_datasource.dart'
 import 'package:frontend/features/auth/data/Repository%20Implementations/auth_repo_impl.dart';
 import 'package:frontend/features/auth/domain/Use%20Cases/check_session_usecase.dart';
 import 'package:frontend/features/auth/domain/Use%20Cases/clear_session_usecase.dart';
+import 'package:frontend/features/auth/domain/Use%20Cases/forgot_password_usecase.dart';
+import 'package:frontend/features/auth/domain/Use%20Cases/google_sign_in_usecase.dart';
 import 'package:frontend/features/auth/domain/Use%20Cases/login_usecase.dart';
 import 'package:frontend/features/auth/domain/Use%20Cases/register_usecase.dart';
+import 'package:frontend/features/auth/domain/Use%20Cases/reset_password_usecase.dart';
 import 'package:frontend/features/auth/domain/Use%20Cases/save_session_usecase.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_event.dart';
@@ -24,6 +29,9 @@ import 'package:frontend/features/meetings/presentation/bloc/meeting_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // Infrastructure setup
   final prefs = await SharedPreferences.getInstance();
@@ -43,9 +51,12 @@ void main() async {
   // Auth Domain use cases
   final loginUseCase = LoginUseCase(repository: authRepository);
   final registerUseCase = RegisterUseCase(repository: authRepository);
+  final googleSignInUseCase = GoogleSignInUseCase(authRepository);
   final checkSessionUseCase = CheckSessionUseCase(repository: authRepository);
   final saveSessionUseCase = SaveSessionUseCase(repository: authRepository);
   final clearSessionUseCase = ClearSessionUseCase(repository: authRepository);
+  final forgotPasswordUseCase = ForgotPasswordUseCase(repository: authRepository);
+  final resetPasswordUseCase = ResetPasswordUseCase(repository: authRepository);
 
   // Meetings Clean Architecture dependencies
   final meetingRemoteDataSource = MeetingRemoteDataSourceImpl(
@@ -61,9 +72,12 @@ void main() async {
   final authBloc = AuthBloc(
     loginUseCase: loginUseCase,
     registerUseCase: registerUseCase,
+    googleSignInUseCase: googleSignInUseCase,
     checkSessionUseCase: checkSessionUseCase,
     saveSessionUseCase: saveSessionUseCase,
     clearSessionUseCase: clearSessionUseCase,
+    forgotPasswordUseCase: forgotPasswordUseCase,
+    resetPasswordUseCase: resetPasswordUseCase,
   );
 
   apiService.onSessionExpired = () {

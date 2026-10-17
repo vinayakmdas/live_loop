@@ -1,11 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:livekit_client/livekit_client.dart' hide ChatMessage;
 import 'package:permission_handler/permission_handler.dart';
-import 'package:frontend/core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_state.dart';
 import 'package:frontend/features/home/domain/entities/chat_message.dart';
@@ -17,6 +18,7 @@ class VideoCallScreen extends StatefulWidget {
   final String token;
   final String roomName;
   final String? userName;
+  final String? userProfileImage;
 
   const VideoCallScreen({
     super.key,
@@ -24,6 +26,7 @@ class VideoCallScreen extends StatefulWidget {
     required this.token,
     required this.roomName,
     this.userName,
+    this.userProfileImage,
   });
 
   @override
@@ -66,7 +69,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     _chatService.onMessageReceived = (message) {
       if (!mounted) return;
       setState(() {
-        _chatMessages.add(message);
+        final existingIndex = _chatMessages.indexWhere((m) => m.id == message.id);
+        if (existingIndex >= 0) {
+          _chatMessages[existingIndex] = message;
+        } else {
+          _chatMessages.add(message);
+        }
         final isMe = message.isFromUser(_currentUserId, _getUserDisplayName());
         if (!isMe && !_isChatOpen) {
           _unreadChatCount++;
@@ -78,8 +86,14 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     _chatService.onRoomHistory = (messages) {
       if (!mounted) return;
       setState(() {
-        _chatMessages.clear();
-        _chatMessages.addAll(messages);
+        final existingIds = _chatMessages.map((m) => m.id).toSet();
+        for (final msg in messages) {
+          if (!existingIds.contains(msg.id)) {
+            _chatMessages.add(msg);
+            existingIds.add(msg.id);
+          }
+        }
+        _chatMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
       });
     };
 
@@ -96,9 +110,10 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
     _chatService.init();
     _chatService.joinRoom(
-      roomId: widget.roomName,
+      roomId: widget.roomName.trim(),
       userId: _currentUserId,
       userName: _getUserDisplayName(),
+      profileImage: widget.userProfileImage,
     );
   }
 
@@ -691,6 +706,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         }
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF070A0F),
         body: SafeArea(
           top: false,
@@ -732,21 +748,44 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                             right: 0,
                             bottom: 0,
                             child: InCallChatSheet(
-                              messages: _chatMessages,
+                              messages: List<ChatMessage>.from(_chatMessages),
                               currentUserId: _currentUserId,
                               currentUserName: _getUserDisplayName(),
+                              currentUserProfileImage: widget.userProfileImage,
                               typingUserName: _typingUserName,
+                              isConnected: _chatService.isConnected,
                               onSendMessage: (text) {
-                                _chatService.sendMessage(
-                                  roomId: widget.roomName,
-                                  text: text,
+                                final cleanText = text.trim();
+                                if (cleanText.isEmpty) return;
+
+                                final messageId =
+                                    'msg_${DateTime.now().millisecondsSinceEpoch}_$_currentUserId';
+                                final optimisticMsg = ChatMessage(
+                                  id: messageId,
+                                  roomId: widget.roomName.trim(),
                                   senderId: _currentUserId,
                                   senderName: _getUserDisplayName(),
+                                  senderProfileImage: widget.userProfileImage,
+                                  text: cleanText,
+                                  timestamp: DateTime.now(),
+                                );
+
+                                setState(() {
+                                  _chatMessages.add(optimisticMsg);
+                                });
+
+                                _chatService.sendMessage(
+                                  id: messageId,
+                                  roomId: widget.roomName.trim(),
+                                  text: cleanText,
+                                  senderId: _currentUserId,
+                                  senderName: _getUserDisplayName(),
+                                  senderProfileImage: widget.userProfileImage,
                                 );
                               },
                               onTypingChanged: (isTyping) {
                                 _chatService.sendTyping(
-                                  roomId: widget.roomName,
+                                  roomId: widget.roomName.trim(),
                                   isTyping: isTyping,
                                 );
                               },
@@ -1010,6 +1049,23 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     );
   }
 
+  String? _getParticipantProfileImage(Participant? participant, bool isLocal) {
+    if (isLocal) {
+      return widget.userProfileImage;
+    }
+    final metaStr = participant?.metadata;
+    if (metaStr != null && metaStr.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(metaStr);
+        if (decoded is Map && decoded['profileImage'] != null) {
+          final img = decoded['profileImage'].toString().trim();
+          if (img.isNotEmpty) return img;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
   Widget _buildParticipantTile({
     required Participant participant,
     required bool isLocal,
@@ -1019,6 +1075,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     final hasActiveVideo = _isVideoActive(participant);
     final isMuted = _isAudioMuted(participant);
     final name = _getParticipantName(participant);
+    final profileImageUrl = _getParticipantProfileImage(participant, isLocal);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(isPip ? 16 : 0),
@@ -1038,6 +1095,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           else
             _buildAvatarView(
               name: name,
+              profileImageUrl: profileImageUrl,
               isLocal: isLocal,
               isPip: isPip,
               isSpeaking: participant.isSpeaking,
@@ -1162,11 +1220,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   Widget _buildAvatarView({
     required String name,
+    String? profileImageUrl,
     required bool isLocal,
     required bool isPip,
     required bool isSpeaking,
   }) {
     final initials = _getInitials(name);
+    final hasImage = profileImageUrl != null && profileImageUrl.isNotEmpty;
 
     if (isPip) {
       return Container(
@@ -1180,23 +1240,33 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
               height: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                ),
+                gradient: hasImage
+                    ? null
+                    : const LinearGradient(
+                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                      ),
+                image: hasImage
+                    ? DecorationImage(
+                        image: NetworkImage(profileImageUrl),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
                 border: Border.all(
                   color: isSpeaking ? AppColors.liveGreen : Colors.white24,
                   width: isSpeaking ? 2.5 : 1,
                 ),
               ),
               alignment: Alignment.center,
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
+              child: hasImage
+                  ? null
+                  : Text(
+                      initials,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
             ),
             const SizedBox(height: 6),
             const Icon(
@@ -1234,11 +1304,19 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                 height: 124,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                  ),
+                  gradient: hasImage
+                      ? null
+                      : const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
+                  image: hasImage
+                      ? DecorationImage(
+                          image: NetworkImage(profileImageUrl),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                   boxShadow: [
                     BoxShadow(
                       color: (isSpeaking ? AppColors.liveGreen : const Color(0xFF6366F1))
@@ -1253,15 +1331,17 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                   ),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 44,
-                    letterSpacing: 1.2,
-                  ),
-                ),
+                child: hasImage
+                    ? null
+                    : Text(
+                        initials,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 44,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
               ),
               const SizedBox(height: 20),
               // Name
@@ -1452,31 +1532,34 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
             const SizedBox(width: 10),
 
             // Participant Count Pill
-            ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.people_rounded, color: Colors.white70, size: 16),
-                      const SizedBox(width: 5),
-                      Text(
-                        '$participantCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+            GestureDetector(
+              onTap: _showParticipantsSheet,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.people_rounded, color: Colors.white70, size: 16),
+                        const SizedBox(width: 5),
+                        Text(
+                          '$participantCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1484,6 +1567,162 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showParticipantsSheet() {
+    final local = _room?.localParticipant;
+    final remotes = _room?.remoteParticipants.values.toList() ?? [];
+    final allParticipants = <Map<String, dynamic>>[];
+
+    if (local != null) {
+      allParticipants.add({
+        'name': '${_getUserDisplayName()} (You)',
+        'profileImage': widget.userProfileImage,
+        'initials': _getInitials(_getUserDisplayName()),
+        'isMuted': !_micEnabled,
+        'isVideoOn': _cameraEnabled,
+        'isLocal': true,
+      });
+    }
+
+    for (final remote in remotes) {
+      final name = _getParticipantName(remote);
+      final profileImg = _getParticipantProfileImage(remote, false);
+      allParticipants.add({
+        'name': name,
+        'profileImage': profileImg,
+        'initials': _getInitials(name),
+        'isMuted': _isAudioMuted(remote),
+        'isVideoOn': _isVideoActive(remote),
+        'isLocal': false,
+      });
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF131822).withValues(alpha: 0.95),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.12),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Participants (${allParticipants.length})',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close, color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                    const Divider(color: Colors.white10),
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: allParticipants.length,
+                      separatorBuilder: (context, index) =>
+                          const Divider(color: Colors.white10, height: 1),
+                      itemBuilder: (_, idx) {
+                        final p = allParticipants[idx];
+                        final hasImage = p['profileImage'] != null &&
+                            (p['profileImage'] as String).isNotEmpty;
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 4, horizontal: 0),
+                          leading: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: p['isLocal'] == true
+                                ? AppColors.primary
+                                : const Color(0xFF3B82F6),
+                            backgroundImage: hasImage
+                                ? NetworkImage(p['profileImage'] as String)
+                                : null,
+                            child: hasImage
+                                ? null
+                                : Text(
+                                    p['initials'] as String,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                          title: Text(
+                            p['name'] as String,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                p['isVideoOn'] == true
+                                    ? Icons.videocam
+                                    : Icons.videocam_off,
+                                color: p['isVideoOn'] == true
+                                    ? Colors.white70
+                                    : Colors.redAccent,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(
+                                p['isMuted'] == true
+                                    ? Icons.mic_off
+                                    : Icons.mic,
+                                color: p['isMuted'] == true
+                                    ? Colors.redAccent
+                                    : Colors.white70,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

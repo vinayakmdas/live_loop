@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../../core/appcolors.dart';
+
+import 'package:frontend/core/theme/appcolors.dart';
 
 class MeetingCard extends StatelessWidget {
   final String meetingName;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:frontend/core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_state.dart';
 import 'package:frontend/features/auth/presentation/pages/loginscreen.dart';
@@ -12,7 +12,6 @@ import 'package:frontend/features/home/presentation/bloc/home_bloc.dart';
 import 'package:frontend/features/home/presentation/bloc/home_event.dart';
 import 'package:frontend/features/home/presentation/page/homescreen.dart';
 import 'package:frontend/features/meetings/presentation/pages/meeting_screen.dart';
-import 'package:frontend/features/notification/presentation/page/notification_screen.dart';
 import 'package:frontend/features/profile/presentation/page/profile_screen.dart';
 
 class MainPage extends StatelessWidget {
@@ -21,7 +20,6 @@ class MainPage extends StatelessWidget {
   static const List<Widget> _pages = [
     Homescreen(),
     MeetingScreen(),
-    NotificationScreen(),
     ProfileScreen(),
   ];
 

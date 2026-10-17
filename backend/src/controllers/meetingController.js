@@ -292,6 +292,11 @@ const joinMeeting = async (req, res, next) => {
       roomName: effectiveRoomName,
       participantIdentity: req.user.id.toString(),
       participantName: req.user.name || req.user.username || "Participant",
+      metadata: JSON.stringify({
+        profileImage: req.user.profileImage || null,
+        name: req.user.name || req.user.username || "Participant",
+        userId: req.user.id.toString(),
+      }),
       ttl: "6h",
     });
 

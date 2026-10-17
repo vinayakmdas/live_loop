@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:frontend/core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_bloc.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc_state.dart';
 import 'package:frontend/features/auth/presentation/widget/login_widget.dart';
@@ -88,12 +88,14 @@ class _LoginscreenState extends State<Loginscreen> {
                 LoginWidget.emailField(emailController: emailcontroller),
                 const SizedBox(height: 30),
                 LoginWidget.passwordField(passwordController: passwordcontroller),
-                const SizedBox(height: 30),
+                const SizedBox(height: 12),
+                LoginWidget.forgotPasswordButton(context),
+                const SizedBox(height: 24),
                 LoginWidget.loginButton(emailcontroller, passwordcontroller, context),
                 const SizedBox(height: 30),
                 LoginWidget.orDivider(),
                 const SizedBox(height: 30),
-                LoginWidget.googleSignInButton(),
+                LoginWidget.googleSignInButton(context),
                 const SizedBox(height: 30),
                 LoginWidget.moveToSignup(context: context),
               ],

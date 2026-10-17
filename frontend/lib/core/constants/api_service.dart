@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import 'package:frontend/core/constants/api_constant.dart';
-import 'package:frontend/core/storage/tocken_storage.dart';
+import 'api_constant.dart';
+import '../storage/tocken_storage.dart';
 
 class ApiService {
   final SessionLocalDataSource? sessionLocalDataSource;
@@ -120,6 +120,9 @@ class ApiService {
   bool _isAuthEndpoint(String endpoint) {
     return endpoint == ApiConstants.loginEndpoint ||
         endpoint == ApiConstants.registerEndpoint ||
+        endpoint == '/api/auth/google' ||
+        endpoint == '/api/auth/forgot-password' ||
+        endpoint == '/api/auth/reset-password' ||
         endpoint == ApiConstants.refreshEndpoint;
   }
 

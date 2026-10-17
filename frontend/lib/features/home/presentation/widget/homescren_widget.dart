@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:frontend/core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
 import 'package:frontend/features/meetings/presentation/bloc/meeting_bloc.dart';
 import 'package:frontend/features/meetings/presentation/bloc/meeting_event.dart';
 import 'package:frontend/features/meetings/presentation/pages/create_meeting_page.dart';
@@ -10,8 +10,11 @@ class HomescrenWidget {
   /// Complete AppBar for the Home screen with app branding and user avatar
   static PreferredSizeWidget appBar({
     required String userInitial,
+    String? profileImageUrl,
     VoidCallback? onProfileTap,
   }) {
+    final hasImage = profileImageUrl != null && profileImageUrl.isNotEmpty;
+
     return AppBar(
       backgroundColor: AppColors.background,
       elevation: 0,
@@ -33,13 +36,16 @@ class HomescrenWidget {
             child: CircleAvatar(
               radius: 20,
               backgroundColor: AppColors.avatarBackground,
-              child: Text(
-                userInitial,
-                style: const TextStyle(
-                  color: AppColors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              backgroundImage: hasImage ? NetworkImage(profileImageUrl) : null,
+              child: hasImage
+                  ? null
+                  : Text(
+                      userInitial,
+                      style: const TextStyle(
+                        color: AppColors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -63,10 +69,7 @@ class HomescrenWidget {
         const SizedBox(height: 8),
         const Text(
           'Stay connected with your meetings',
-          style: TextStyle(
-            fontSize: 15,
-            color: AppColors.grey,
-          ),
+          style: TextStyle(fontSize: 15, color: AppColors.grey),
         ),
       ],
     );
@@ -78,9 +81,7 @@ class HomescrenWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(
-            color: AppColors.primaryGradientStart,
-          ),
+          CircularProgressIndicator(color: AppColors.primaryGradientStart),
           SizedBox(height: 16),
           Text(
             'Loading user profile...',
@@ -142,8 +143,7 @@ class HomescrenWidget {
   }
 
   /// Reusable gradient button to create meetings
-  static Widget createMeetingButton({required
- BuildContext context}) {
+  static Widget createMeetingButton({required BuildContext context}) {
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: AppColors.primaryGradient,
@@ -155,9 +155,7 @@ class HomescrenWidget {
           onTap: () async {
             final result = await Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const CreateMeetingPage(),
-              ),
+              MaterialPageRoute(builder: (_) => const CreateMeetingPage()),
             );
             if (result == true && context.mounted) {
               context.read<MeetingBloc>().add(const LoadMeetingsEvent());
@@ -165,18 +163,11 @@ class HomescrenWidget {
           },
           borderRadius: BorderRadius.circular(8),
           child: const Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: 15,
-              vertical: 13,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: 15, vertical: 13),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.add,
-                  size: 14,
-                  color: AppColors.white,
-                ),
+                Icon(Icons.add, size: 14, color: AppColors.white),
                 SizedBox(width: 4),
                 Text(
                   'Create Meeting',
@@ -190,6 +181,47 @@ class HomescrenWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Search bar for the Home screen matching modern dark styling
+  static Widget searchBar({
+    required TextEditingController controller,
+    required ValueChanged<String> onChanged,
+    VoidCallback? onClear,
+    String hintText = 'Search meetings by name or category...',
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.navigationBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.navigationBorder),
+      ),
+      child: TextField(
+        controller: controller,
+        style: const TextStyle(color: AppColors.white, fontSize: 14),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(color: AppColors.hintText, fontSize: 13),
+          prefixIcon: const Icon(Icons.search, color: AppColors.grey, size: 20),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(
+                    Icons.clear,
+                    color: AppColors.grey,
+                    size: 18,
+                  ),
+                  onPressed: onClear,
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 13,
+          ),
+        ),
+        onChanged: onChanged,
       ),
     );
   }

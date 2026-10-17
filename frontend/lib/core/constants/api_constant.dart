@@ -14,7 +14,7 @@ class ApiConstants {
     }
 
     if (Platform.isAndroid) {
-      return "http://192.168.1.100:5001";
+      return "http://192.168.1.4:5001";
     }
 
     return "http://localhost:5001";
@@ -22,6 +22,9 @@ class ApiConstants {
 
   static const String loginEndpoint = "/api/auth/login";
   static const String registerEndpoint = "/api/auth/register";
+  static const String googleAuthEndpoint = "/api/auth/google";
+  static const String forgotPasswordEndpoint = "/api/auth/forgot-password";
+  static const String resetPasswordEndpoint = "/api/auth/reset-password";
   static const String refreshEndpoint = "/api/auth/refresh";
   static const String logoutEndpoint = "/api/auth/logout";
   static const String meetingsEndpoint = "/api/meetings";

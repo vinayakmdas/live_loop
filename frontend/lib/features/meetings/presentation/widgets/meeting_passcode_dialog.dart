@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
+
 
 /// Shows a dialog requesting the room password for a private meeting.
 /// Returns the entered password string if submitted, or null if canceled.

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:frontend/core/appcolors.dart';
+import 'package:frontend/core/theme/appcolors.dart';
 import 'package:frontend/features/bottom_navigation/presentation/bloc/%20BottomNav/bottom_nav_bloc.dart';
 import 'package:frontend/features/bottom_navigation/presentation/bloc/%20BottomNav/bottom_nav_event.dart';
 import 'package:frontend/features/bottom_navigation/presentation/bloc/%20BottomNav/bottom_nav_state.dart';
