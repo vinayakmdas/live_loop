@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "572545591194",
+    "project_id": "live-loop-7a5b2",
+    "storage_bucket": "live-loop-7a5b2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:572545591194:android:052bbcbd60b6e325bbbc23",
+        "android_client_info": {
+          "package_name": "com.example.frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFUvYjjK4GXE1KVhryl7kq5v7qgZptx_8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
